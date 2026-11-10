@@ -606,6 +606,8 @@ class MainActivity : Screen() {
         super.onResume()
         // ponytail: idle dim and the cinema screensaver are off (2026-10-26, not wanted yet); post `idle` here to bring the cinema back.
         updateDot?.visibility = if (Updates.hasUpdate(this)) View.VISIBLE else View.GONE
+        // Back from Settings: the hero shows the ratings picked there (Letterboxd needs a redraw to ask for its score).
+        if (mode == Mode.BROWSE) heroItem?.let(::showHero)
         if (Updates.due(this)) background({ Updates.latest(applicationContext) }) { r ->
             val release = r.getOrNull()?.takeIf { newerVersion(it.version, Updates.mine(this)) } ?: return@background
             updateDot?.visibility = View.VISIBLE

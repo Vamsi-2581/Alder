@@ -68,7 +68,8 @@ internal class PhoneEntry(private val page: (saved: Boolean) -> String, private 
     }
 
     private companion object {
-        const val ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+        // No i, l, o, 0, 1 (look alike), and no x: Inter draws "6x7" as "6×7".
+        const val ALPHABET = "abcdefghjkmnpqrstuvwyz23456789"
         const val MAX_HEAD = 8_192
         const val MAX_BODY = 4_096
         val random = SecureRandom()

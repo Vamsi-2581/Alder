@@ -511,7 +511,8 @@ abstract class Screen : Activity() {
             }) { typed -> main.post { if (dialog.isShowing) dialog.dismiss(); done(typed) } }
         }.getOrNull()
         val url = entry?.url ?: run { entry?.close(); return askText(title, R.string.action_ok, initial = initial, done = done) }
-        dialog.setOnDismissListener { entry.close() }
+        val back = currentFocus // the row that opened it, so the remote stays there when the phone sends the text
+        dialog.setOnDismissListener { entry.close(); back?.requestFocus() }
         val typeInstead = pill(R.string.phone_entry_type).apply {
             setOnClickListener { dialog.dismiss(); askText(title, R.string.action_ok, initial = initial, done = done) }
         }
