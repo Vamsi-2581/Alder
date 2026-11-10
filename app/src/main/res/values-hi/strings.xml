@@ -264,6 +264,10 @@
     <string name="subtitle_color_hint">सबटाइटल के टेक्स्ट का रंग।</string>
     <string name="subtitle_background">सबटाइटल की पृष्ठभूमि</string>
     <string name="subtitle_background_hint">सबटाइटल के पीछे गहरा बॉक्स उन्हें चमकीले दृश्यों में भी पढ़ने लायक रखता है।</string>
+    <string name="picture_fit">तस्वीर</string>
+    <string name="picture_fit_fit">फ़िट</string>
+    <string name="picture_fit_zoom">ज़ूम</string>
+    <string name="picture_fit_stretch">खींचें</string>
     <string name="settings_profile_name">प्रोफ़ाइल %1$s</string>
     <string name="addons_installed">%1$d इंस्टॉल</string>
     <string name="addons_unavailable">उपलब्ध नहीं</string>
