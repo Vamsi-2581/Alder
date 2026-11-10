@@ -347,10 +347,16 @@ class SettingsActivity : Screen() {
 
         detailTitle = text("", BODY, bold = true).apply { setPadding(dp(12), 0, 0, 0) }
         detailRows = column(Gravity.START)
-        rowsScroll = ScrollView(this).apply {
+        // A long group (Profile) scrolls in its own space: drawn past it, rows ran over the group's title and pushed the
+        // help off the screen. The padding keeps room for the focused row's glow inside that space.
+        val rowsMax = dp((height - 210).toInt())
+        rowsScroll = object : ScrollView(this) {
+            override fun onMeasure(widthSpec: Int, heightSpec: Int) =
+                super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(rowsMax, MeasureSpec.AT_MOST))
+        }.apply {
             isVerticalScrollBarEnabled = false
-            clipChildren = false
             clipToPadding = false
+            setPadding(dp(12), dp(6), dp(12), dp(12))
             addView(detailRows)
         }
         hint = text("", SMALL, color = TEXT_2).onArt().apply { setPadding(dp(12), 0, dp(20), 0) }
@@ -358,8 +364,8 @@ class SettingsActivity : Screen() {
         val detail = column(Gravity.START).apply {
             clipChildren = false
             addView(detailTitle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3) })
-            addView(rowsScroll, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
-            addView(hint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+            addView(rowsScroll, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4); marginStart = -dp(12); marginEnd = -dp(12) })
+            addView(hint, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
         root.addView(detail, FrameLayout.LayoutParams(dp((width - 328).toInt()), dp((height - 110).toInt()), Gravity.TOP or Gravity.START).apply {
             leftMargin = dp(280); topMargin = dp(88)
