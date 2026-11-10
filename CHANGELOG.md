@@ -22,6 +22,7 @@ Put changes that are not released under `## Unreleased`. Before each release, re
 - Add an Alder website card image with the app screen and product text.
 
 ### Easier to use
+- **Subtitle match.** Alder sends the file name and size of the video to subtitle add-ons. The add-on shows subtitles for that release first, so the timing is correct more frequently.
 - **Alder website.** The site shows the app screens and makes the download and setup steps easy to find.
 
 ### Fixes

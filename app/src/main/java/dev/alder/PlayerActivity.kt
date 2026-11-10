@@ -629,47 +629,25 @@ class PlayerActivity : Screen() {
             begin(0L)
             return
         }
-        if (sources.isEmpty()) {
-            pauseFacts.text = getString(R.string.finding_sources)
-            pauseFacts.visibility = View.VISIBLE
-            bar.isIndeterminate = true
-            showControls(null)
-            resolvingStreams = StreamsResolver.resolve(
-                context = this,
-                type = type,
-                videoId = videoId,
-                metaId = metaId,
-                authKey = key,
-                onReady = { best ->
-                    resolvingStreams = null
-                    if (isFinishing || isDestroyed) return@resolve
-                    sources = best
-                    refreshBadges()
-                    pauseFacts.text = getString(R.string.player_starting_stream)
-                    val resumeToStart = pendingResume ?: known ?: 0L
-                    begin(resumeToStart)
-                },
-                onFallback = {
-                    resolvingStreams = null
-                    if (isFinishing || isDestroyed) return@resolve
-                    startActivity(Intent(this, StreamsActivity::class.java).putExtras(intent))
-                    finish()
-                }
-            )
-        }
         val waitMs = if (pickedSub?.startsWith("addon:") == true) 3_500L else SUB_WAIT
         val stopWaiting = Runnable { subsAnswered = true; waiting?.let(::begin) }
         main.postDelayed(stopWaiting, waitMs)
-        background({
+        // Asked with the stream's file name and size when they're known, so the addon puts files for that release
+        // first. A stream found here (Continue Watching) asks again once it's known; an older answer never replaces a newer one.
+        var subsAsked = 0
+        var subsShown = 0
+        fun askSubs(stream: Stream?) = (++subsAsked).let { round -> background({
             // Every language: the profile's subtitle language and English first, three files each in the addon's order,
             // then one file for each other language by name, so the list stays short enough for a remote.
             val all = Stremio.addons(key).filter { it.serves("subtitles", type, videoId) }
-                .flatMap { a -> runCatching { a.subtitles(type, videoId) }
+                .flatMap { a -> runCatching { a.subtitles(type, videoId, stream) }
                     .onFailure { android.util.Log.w("Alder", "subtitles from ${a.name} failed", it) }.getOrDefault(emptyList()) }
             all.groupBy { Languages.code(it.lang) ?: it.lang }.entries
                 .sortedWith(compareBy({ it.key != wantSub }, { it.key != "en" }, { Languages.name(it.key) }))
                 .flatMap { (code, files) -> files.take(if (code == wantSub || code == "en") 3 else 1) }
         }) { r ->
+            if (round < subsShown || isFinishing || isDestroyed) return@background
+            subsShown = round
             addonSubs = r.getOrDefault(emptyList())
             android.util.Log.i("Alder", "addon subtitles: ${addonSubs.size}", r.exceptionOrNull())
             if (options.visibility == View.VISIBLE) {
@@ -691,6 +669,36 @@ class PlayerActivity : Screen() {
             main.removeCallbacks(stopWaiting)
             if (chosenSub == null) chosenSub = exact ?: addonSubs.firstOrNull { Languages.same(it.lang, wantSub) } // attached, picked above
             stopWaiting.run()
+        } }
+        askSubs(sources.firstOrNull())
+        if (sources.isEmpty()) {
+            pauseFacts.text = getString(R.string.finding_sources)
+            pauseFacts.visibility = View.VISIBLE
+            bar.isIndeterminate = true
+            showControls(null)
+            resolvingStreams = StreamsResolver.resolve(
+                context = this,
+                type = type,
+                videoId = videoId,
+                metaId = metaId,
+                authKey = key,
+                onReady = { best ->
+                    resolvingStreams = null
+                    if (isFinishing || isDestroyed) return@resolve
+                    sources = best
+                    best.firstOrNull()?.takeIf { subtitleExtras(it.filename, it.size).isNotEmpty() }?.let(::askSubs)
+                    refreshBadges()
+                    pauseFacts.text = getString(R.string.player_starting_stream)
+                    val resumeToStart = pendingResume ?: known ?: 0L
+                    begin(resumeToStart)
+                },
+                onFallback = {
+                    resolvingStreams = null
+                    if (isFinishing || isDestroyed) return@resolve
+                    startActivity(Intent(this, StreamsActivity::class.java).putExtras(intent))
+                    finish()
+                }
+            )
         }
         // The stream starts at once from what's known here (the intent, or the library saved on the TV) instead of
         // waiting a round trip to Stremio for the resume point; Stremio's answer corrects it if it moved elsewhere.
