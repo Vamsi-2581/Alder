@@ -132,6 +132,8 @@ class DetailsActivity : Screen() {
     private var trailerRequested = false
     private var certificate: String? = null
     private var certificateRequested = false
+    private var letterboxdScore: String? = null
+    private var letterboxdRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -179,6 +181,18 @@ class DetailsActivity : Screen() {
                     val resolved = r.getOrNull()
                     if (resolved != null && resolved != certificate) {
                         certificate = resolved
+                        if (!guideOpen && !infoOpen && !similarOpen && !filmographyOpen) showHero(meta)
+                    }
+                }
+            }
+            if (!letterboxdRequested && Settings.wantsLetterboxd(this, type, m.id)) {
+                letterboxdRequested = true
+                letterboxdScore = knownLetterboxd(m.id)
+                val key = Settings.mdblistKey(this)
+                background({ letterboxd(m.id, key, fresh = true) }) { r ->
+                    val score = r.getOrNull()
+                    if (score != null && score != letterboxdScore) {
+                        letterboxdScore = score
                         if (!guideOpen && !infoOpen && !similarOpen && !filmographyOpen) showHero(meta)
                     }
                 }
@@ -271,15 +285,10 @@ class DetailsActivity : Screen() {
             factRow.addView(text(facts, SMALL, color = TEXT_2).onArt().apply {
                 maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             })
-            m.rating?.let { rating ->
+            val ratings = shownRatings(Settings.ratings(this), m.rating, letterboxdScore)
+            if (ratings.isNotEmpty()) {
                 factRow.addView(text(DOT, SMALL, color = TEXT_2).onArt())
-                factRow.addView(text("IMDb", 9.5f, bold = true, color = BASE).apply {
-                    includeFontPadding = false
-                    setLineSpacing(0f, 1f)
-                    setPadding(dp(5), dp(2), dp(5), dp(2))
-                    background = rounded(TUNGSTEN, 3)
-                })
-                factRow.addView(text(rating, SMALL, color = TEXT_2).onArt(), wrap().apply { marginStart = dp(6) })
+                addRatings(factRow, ratings, tagSp = 9.5f, firstGap = 0)
             }
             stack.addView(factRow, wrap().apply { topMargin = dp(12) })
             m.description?.takeIf { it.isNotBlank() }?.let {
@@ -894,8 +903,9 @@ class DetailsActivity : Screen() {
                 intArrayOf(0xEB0E0C0A.toInt(), 0xD90E0C0A.toInt(), 0x990E0C0A.toInt()))
         }, FrameLayout.LayoutParams(-1, -1))
 
-        val facts = listOfNotNull(m.year, m.runtime,
-            m.genres.take(2).joinToString(" / ").ifEmpty { null }, m.rating?.let { "IMDb $it" }).joinToString(DOT)
+        val facts = (listOfNotNull(m.year, m.runtime,
+            m.genres.take(2).joinToString(" / ").ifEmpty { null }) +
+            shownRatings(Settings.ratings(this), m.rating, letterboxdScore).map { (source, value) -> "$source $value" }).joinToString(DOT)
 
         val content = column(Gravity.START).apply {
             clipChildren = false

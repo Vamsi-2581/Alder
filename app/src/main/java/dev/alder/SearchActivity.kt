@@ -179,7 +179,7 @@ class SearchActivity : Screen() {
         heroLogo = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_START }
         heroName = text("", 48f, serif = true).onArt().apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
         heroFacts = text("", SMALL, color = TEXT_2).onArt()
-        heroTag = imdbTag()
+        heroTag = ratingTag()
         heroScore = text("", SMALL, color = TEXT_2).onArt()
         heroAbout = text("", BODY, color = TEXT).onArt().apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
         hero = column(Gravity.START).apply {
