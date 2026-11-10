@@ -265,6 +265,10 @@
     <string name="subtitle_color_hint">The color of subtitle text.</string>
     <string name="subtitle_background">Subtitle background</string>
     <string name="subtitle_background_hint">A dark box behind subtitles keeps them readable in bright scenes.</string>
+    <string name="picture_fit">Picture</string>
+    <string name="picture_fit_fit">Fit</string>
+    <string name="picture_fit_zoom">Zoom</string>
+    <string name="picture_fit_stretch">Stretch</string>
     <string name="settings_profile_name">Profile %1$s</string>
     <string name="addons_installed">%1$d installed</string>
     <string name="addons_unavailable">Unavailable</string>

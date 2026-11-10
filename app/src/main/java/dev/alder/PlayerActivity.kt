@@ -398,6 +398,7 @@ class PlayerActivity : Screen() {
                 CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK, null))
             setBackgroundColor(Color.BLACK)
         }
+        applyPictureFit()
         status = text("", BODY).onArt().apply {
             gravity = Gravity.CENTER
             maxWidth = dp(440)
@@ -2700,36 +2701,9 @@ class PlayerActivity : Screen() {
         syncPanel.addView(caps(R.string.subtitle_size, TEXT_3), wrap().apply { bottomMargin = dp(4) })
         val sizes = listOf(80 to R.string.size_small, 100 to R.string.size_medium, 130 to R.string.size_large,
             160 to R.string.size_extra_large).map { (size, words) -> size to getString(words) }
-        var currentSubSize = Settings.subtitleSize(this)
-        val sizePills = mutableListOf<TextView>()
-        val sizeRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        sizes.forEachIndexed { idx, (sizeValue, sizeLabel) ->
-            val isCur = currentSubSize == sizeValue
-            val p = text(sizeLabel, SMALL, bold = true, color = if (isCur) TUNGSTEN else TEXT_2).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                background = if (isCur) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                rowFocus(8, rest = { if (currentSubSize == sizeValue) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
-                    setTextColor(if (has || currentSubSize == sizeValue) TEXT else TEXT_2)
-                }
-                setOnClickListener {
-                    currentSubSize = sizeValue
-                    Settings.setSubtitleSize(this@PlayerActivity, sizeValue)
-                    view.subtitleView?.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * sizeValue / 100f)
-                    sizePills.forEachIndexed { i, pill ->
-                        val active = sizes[i].first == currentSubSize
-                        pill.background = if (active) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                        pill.setTextColor(if (active) TUNGSTEN else TEXT_2)
-                    }
-                }
-            }
-            sizePills.add(p)
-            sizeRow.addView(p, LinearLayout.LayoutParams(0, dp(30), 1f).apply {
-                if (idx < sizes.lastIndex) marginEnd = dp(5)
-            })
+        val sizeRow = pillRow(sizes, Settings.subtitleSize(this)) { sizeValue ->
+            Settings.setSubtitleSize(this@PlayerActivity, sizeValue)
+            view.subtitleView?.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * sizeValue / 100f)
         }
         syncPanel.addView(sizeRow, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(10) })
 
@@ -2738,37 +2712,23 @@ class PlayerActivity : Screen() {
 
         syncPanel.addView(caps(R.string.background_box, TEXT_3), wrap().apply { bottomMargin = dp(4) })
         val bgOptions = listOf(true to getString(R.string.state_on), false to getString(R.string.state_off))
-        val bgPills = mutableListOf<TextView>()
-        val bgRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        bgOptions.forEachIndexed { idx, (bgValue, bgLabel) ->
-            val isCur = currentBg == bgValue
-            val p = text(bgLabel, SMALL, bold = true, color = if (isCur) TUNGSTEN else TEXT_2).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                background = if (isCur) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                rowFocus(8, rest = { if (currentBg == bgValue) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
-                    setTextColor(if (has || currentBg == bgValue) TEXT else TEXT_2)
-                }
-                setOnClickListener {
-                    currentBg = bgValue
-                    Settings.setSubtitleBackground(this@PlayerActivity, bgValue)
-                    applySubtitleStyle()
-                    bgPills.forEachIndexed { i, pill ->
-                        val active = bgOptions[i].first == currentBg
-                        pill.background = if (active) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                        pill.setTextColor(if (active) TUNGSTEN else TEXT_2)
-                    }
-                }
-            }
-            bgPills.add(p)
-            bgRow.addView(p, LinearLayout.LayoutParams(0, dp(30), 1f).apply {
-                if (idx < bgOptions.lastIndex) marginEnd = dp(6)
-            })
+        val bgRow = pillRow(bgOptions, currentBg, gap = 6) { bgValue ->
+            currentBg = bgValue
+            Settings.setSubtitleBackground(this@PlayerActivity, bgValue)
+            applySubtitleStyle()
         }
         syncPanel.addView(bgRow, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(14) })
+
+        syncPanel.addView(divider().apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(4), 0, dp(10)) }
+        })
+        syncPanel.addView(caps(R.string.picture_fit, TUNGSTEN), wrap().apply { bottomMargin = dp(6) })
+        val fits = listOf("fit" to getString(R.string.picture_fit_fit), "zoom" to getString(R.string.picture_fit_zoom),
+            "stretch" to getString(R.string.picture_fit_stretch))
+        syncPanel.addView(pillRow(fits, Settings.pictureFit(this)) { fit ->
+            Settings.setPictureFit(this@PlayerActivity, fit)
+            applyPictureFit()
+        }, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(14) })
 
         syncPanel.addView(divider().apply {
             layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(4), 0, dp(10)) }
@@ -2895,6 +2855,47 @@ class PlayerActivity : Screen() {
 
     private fun timing(delay: Long) = formatTiming(delay, getString(R.string.timing_on_time),
         getString(R.string.timing_earlier), getString(R.string.timing_later))
+
+    /** One choice as a row of pills (subtitle size, background box, picture fit); the picked one is in tungsten. */
+    private fun <T> pillRow(options: List<Pair<T, String>>, current: T, gap: Int = 5, pick: (T) -> Unit): LinearLayout {
+        var chosen = current
+        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val pills = options.mapIndexed { i, (value, label) ->
+            text(label, SMALL, bold = true).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                rowFocus(8, rest = { if (chosen == value) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
+                    setTextColor(if (has || chosen == value) TEXT else TEXT_2)
+                }
+                row.addView(this, LinearLayout.LayoutParams(0, dp(30), 1f).apply { if (i < options.lastIndex) marginEnd = dp(gap) })
+            }
+        }
+        fun paint() = pills.forEachIndexed { i, pill ->
+            val on = options[i].first == chosen
+            pill.background = if (on) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
+            pill.setTextColor(if (on) TUNGSTEN else TEXT_2)
+        }
+        pills.forEachIndexed { i, pill -> pill.setOnClickListener { chosen = options[i].first; pick(chosen); paint() } }
+        paint()
+        return row
+    }
+
+    /**
+     * Fit, Zoom or Stretch. Media3 keeps the subtitles inside the video's frame, which Zoom makes larger than the screen,
+     * so under Zoom they move onto the screen itself and stay readable; Fit and Stretch put them back.
+     */
+    private fun applyPictureFit() {
+        val fit = Settings.pictureFit(this)
+        view.resizeMode = resizeModeFor(fit)
+        val subs = view.subtitleView ?: return
+        val frame = view.findViewById<ViewGroup>(androidx.media3.ui.R.id.exo_content_frame) ?: return
+        val home: ViewGroup = if (fit == "zoom") view else frame
+        if (subs.parent === home) return
+        (subs.parent as? ViewGroup)?.removeView(subs)
+        val at = if (home === view) view.indexOfChild(frame) + 1
+            else frame.indexOfChild(frame.findViewById(androidx.media3.ui.R.id.exo_buffering)).takeIf { it >= 0 } ?: frame.childCount
+        home.addView(subs, at, FrameLayout.LayoutParams(-1, -1))
+    }
 
     private fun sleep() = sleepLabel(stopAfter, sleepAt, System.currentTimeMillis(), getString(R.string.sleep_after_episode),
         getString(R.string.sleep_in_minutes), getString(R.string.state_off))
@@ -3057,4 +3058,11 @@ private class SeekBar(context: Context) : View(context) {
         paint.color = Screen.TEXT
         if (duration > 0) canvas.drawCircle(x(position), y, knob, paint)
     }
+}
+
+/** Media3's resize mode for Settings' picture fit: Zoom fills the screen and crops, Stretch fills it and changes the shape. */
+internal fun resizeModeFor(fit: String) = when (fit) {
+    "zoom" -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "stretch" -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+    else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 }

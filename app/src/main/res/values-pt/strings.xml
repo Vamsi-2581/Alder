@@ -268,6 +268,10 @@
     <string name="subtitle_color_hint">A cor do texto das legendas.</string>
     <string name="subtitle_background">Fundo das legendas</string>
     <string name="subtitle_background_hint">Um fundo escuro atrás das legendas mantém tudo legível em cenas claras.</string>
+    <string name="picture_fit">Imagem</string>
+    <string name="picture_fit_fit">Ajustar</string>
+    <string name="picture_fit_zoom">Ampliar</string>
+    <string name="picture_fit_stretch">Esticar</string>
     <string name="settings_profile_name">Perfil %1$s</string>
     <string name="addons_installed">%1$d instalados</string>
     <string name="addons_unavailable">Indisponível</string>

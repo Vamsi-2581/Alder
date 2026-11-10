@@ -268,6 +268,10 @@
     <string name="subtitle_color_hint">El color del texto de los subtítulos.</string>
     <string name="subtitle_background">Fondo de subtítulos</string>
     <string name="subtitle_background_hint">Un fondo oscuro detrás de los subtítulos los mantiene legibles en escenas claras.</string>
+    <string name="picture_fit">Imagen</string>
+    <string name="picture_fit_fit">Ajustar</string>
+    <string name="picture_fit_zoom">Ampliar</string>
+    <string name="picture_fit_stretch">Estirar</string>
     <string name="settings_profile_name">Perfil %1$s</string>
     <string name="addons_installed">%1$d instalados</string>
     <string name="addons_unavailable">No disponible</string>

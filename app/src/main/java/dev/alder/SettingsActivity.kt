@@ -133,6 +133,9 @@ object Settings {
     fun subtitleSize(c: Context) = prefs(c).getInt("subSize", 100) // percent of Media3's default size
     fun subtitleColorName(c: Context): String = prefs(c).getString("subColor", "white").orEmpty().ifEmpty { "white" }
     fun subtitleColor(c: Context) = subtitleColorValue(subtitleColorName(c))
+    /** The player's picture: "fit" (whole picture, bars), "zoom" (fills the screen, crops) or "stretch". */
+    fun pictureFit(c: Context) = prefs(c).getString("pictureFit", "fit").orEmpty().ifEmpty { "fit" }
+    fun setPictureFit(c: Context, fit: String) = prefs(c).edit().putString("pictureFit", fit).apply()
     fun subtitleBackground(c: Context) = prefs(c).getBoolean("subBackground", true)
     fun setSubtitleSize(c: Context, size: Int) = prefs(c).edit().putInt("subSize", size).apply()
     fun setSubtitleColor(c: Context, color: String) = prefs(c).edit().putString("subColor", color).apply()
