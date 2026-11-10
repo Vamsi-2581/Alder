@@ -69,6 +69,13 @@ object Settings {
     fun showShows(c: Context) = prefs(c).getBoolean(profileKey(c, "showShows"), true)
     fun showLive(c: Context) = prefs(c).getBoolean(profileKey(c, "showLive"), true)
     fun featuredHome(c: Context) = prefs(c).getBoolean(profileKey(c, "featuredHome"), false)
+    /** "imdb", "letterboxd" or "both"; Letterboxd needs [mdblistKey] and covers films only. */
+    fun ratings(c: Context) = prefs(c).getString("ratings", "imdb").orEmpty().ifEmpty { "imdb" }
+    fun mdblistKey(c: Context) = prefs(c).getString("mdblistKey", "").orEmpty()
+    fun setMdblistKey(c: Context, key: String) = prefs(c).edit().putString("mdblistKey", key.trim()).apply()
+    /** Letterboxd is asked for only when it can show: a film, a key, and a pick that includes it. */
+    fun wantsLetterboxd(c: Context, type: String, id: String) =
+        type == "movie" && id.startsWith("tt") && ratings(c) != "imdb" && mdblistKey(c).isNotEmpty()
     /** A removed profile's taste goes with it, so a new profile in its place starts with none. */
     fun forget(c: Context, profileId: String) = prefs(c).edit().apply {
         listOf("release", "dub", "audioLang", "subLang", "hidden", "blurThumbnails", "hiddenRows", "startTab", "showMovies", "showShows", "showLive", "featuredHome", "recentSubLangs", "recentAudioLangs").forEach { remove("$it@$profileId") }
@@ -540,6 +547,17 @@ class SettingsActivity : Screen() {
                     listOf(false to off, true to on), perProfile = true))
                 choiceRow(Choice("blurThumbnails", getString(R.string.blur_thumbnails), getString(R.string.blur_thumbnails_hint),
                     listOf(false to off, true to on), perProfile = true))
+                choiceRow(Choice("ratings", getString(R.string.ratings_source), getString(R.string.ratings_source_hint),
+                    listOf("imdb" to "IMDb", "letterboxd" to LETTERBOXD, "both" to getString(R.string.ratings_both))))
+                lateinit var keyValue: TextView
+                fun keyState() = getString(if (Settings.mdblistKey(this).isEmpty()) R.string.key_not_set else R.string.key_set)
+                keyValue = actionRow(getString(R.string.mdblist_key), keyState(), getString(R.string.mdblist_key_hint)) {
+                    askText(R.string.mdblist_key, R.string.action_ok, initial = Settings.mdblistKey(this)) { typed ->
+                        Settings.setMdblistKey(this, typed)
+                        forgetLetterboxd()
+                        keyValue.text = keyState() + "  ›"
+                    }
+                }
             }
             Group.LANGUAGE -> appLanguageRow()
             Group.STORAGE -> actionRow(getString(R.string.clear_storage), "", getString(R.string.clear_storage_hint)) {

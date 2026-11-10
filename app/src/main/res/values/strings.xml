@@ -306,6 +306,13 @@
     <string name="featured_home_hint">Show top recommendations and trending rows below Continue Watching.</string>
     <string name="blur_thumbnails">Blur episode thumbnails</string>
     <string name="blur_thumbnails_hint">Blur pictures of unwatched episodes in show guides to avoid spoilers.</string>
+    <string name="ratings_source">Ratings</string>
+    <string name="ratings_source_hint">Choose the ratings on title pages and Home. Letterboxd is for films only and needs an MDBList key. Shows always use IMDb.</string>
+    <string name="ratings_both">Both</string>
+    <string name="mdblist_key">MDBList key</string>
+    <string name="mdblist_key_hint">Your free API key from mdblist.com/preferences. Alder uses it only to get Letterboxd ratings.</string>
+    <string name="key_not_set">Not set</string>
+    <string name="key_set">Set</string>
     <string name="app_language">App language</string>
     <string name="app_language_hint">Menus, buttons and settings show in this language. Titles and descriptions come from your add-ons.</string>
     <string name="tv_language">TV language</string>

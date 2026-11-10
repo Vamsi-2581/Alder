@@ -1,12 +1,8 @@
 package dev.alder
 
-import android.app.Dialog
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -210,38 +206,7 @@ class AddonsActivity : Screen() {
         if (actions.isNotEmpty()) choose(addonShortName(a.name), actions.map { it.first }) { n -> actions[n].second() }
     }
 
-    private fun askUrl() {
-        val dialog = Dialog(this).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
-        val field = EditText(this).apply {
-            hint = "https://…/manifest.json"
-            setHintTextColor(TEXT_3)
-            setTextColor(TEXT)
-            textSize = BODY
-            setSingleLine()
-            imeOptions = EditorInfo.IME_ACTION_DONE
-            background = glass(8)
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-        }
-        dialog.setContentView(column(Gravity.START).apply {
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = glassOver(this, 14)
-            addView(text(R.string.addons_add_title, BODY, bold = true))
-            addView(field, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(14) })
-            addView(LinearLayout(this@AddonsActivity).apply {
-                gravity = Gravity.END
-                addView(chip(R.string.action_cancel).apply { setOnClickListener { dialog.dismiss() } })
-                addView(pill(R.string.action_add).apply {
-                    setOnClickListener { val url = field.text.toString().trim(); dialog.dismiss(); install(url) }
-                }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
-            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
-        })
-        dialog.show()
-        dialog.window?.apply { setBackgroundDrawable(ColorDrawable(0)); setLayout(dp(400), -2); setDimAmount(0.6f) }
-        field.setOnEditorActionListener { _, _, _ ->
-            val url = field.text.toString().trim(); dialog.dismiss(); install(url); true
-        }
-        field.requestFocus()
-    }
+    private fun askUrl() = askText(R.string.addons_add_title, R.string.action_add, "https://…/manifest.json") { install(it) }
 
     // Stremio's install links are stremio://host/…/manifest.json; a bare addon address gets /manifest.json added.
     private fun install(typed: String) {

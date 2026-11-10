@@ -450,12 +450,52 @@ abstract class Screen : Activity() {
         addView(text("Alder", size, serif = true).onArt(), wrap().apply { marginStart = dp(4) })
     }
 
-    /** The IMDb tag beside a rating, as tall as the letters. */
-    protected fun imdbTag() = text("IMDb", SMALL, bold = true, color = BASE).apply {
+    /** The source's tag beside a rating ("IMDb", "Letterboxd"), as tall as the letters. */
+    protected fun ratingTag(source: String = "IMDb", sp: Float = SMALL) = text(source, sp, bold = true, color = BASE).apply {
         background = rounded(TUNGSTEN, 3)
         includeFontPadding = false
         setLineSpacing(0f, 1f)
         setPadding(dp(4), dp(1), dp(4), dp(1))
+    }
+
+    /** [ratings] as tag and number pairs, "IMDb 7.9  Letterboxd 3.9", into [row] after what it already holds. */
+    protected fun addRatings(row: LinearLayout, ratings: List<Pair<String, String>>, tagSp: Float = SMALL, firstGap: Int = 10) =
+        ratings.forEachIndexed { i, (source, value) ->
+            row.addView(ratingTag(source, tagSp), wrap().apply { marginStart = dp(if (i == 0) firstGap else 10) })
+            row.addView(text(value, SMALL, color = TEXT_2).onArt(), wrap().apply { marginStart = dp(6) })
+        }
+
+    /** One line of typing (an addon address, an API key) on glass; OK on the keyboard or the button hands it over, trimmed. */
+    protected fun askText(title: Int, action: Int, hint: String? = null, initial: String = "", done: (String) -> Unit) {
+        val dialog = android.app.Dialog(this).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        val field = android.widget.EditText(this).apply {
+            this.hint = hint
+            setHintTextColor(TEXT_3)
+            setTextColor(TEXT)
+            textSize = BODY
+            setSingleLine()
+            setText(initial)
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            background = glass(8)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        fun finish() { val typed = field.text.toString().trim(); dialog.dismiss(); done(typed) }
+        dialog.setContentView(column(Gravity.START).apply {
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = glassOver(this, 14)
+            addView(text(title, BODY, bold = true))
+            addView(field, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(14) })
+            addView(LinearLayout(context).apply {
+                gravity = Gravity.END
+                addView(chip(R.string.action_cancel).apply { setOnClickListener { dialog.dismiss() } })
+                addView(pill(action).apply { setOnClickListener { finish() } },
+                    LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
+        })
+        dialog.show()
+        dialog.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0)); setLayout(dp(400), -2); setDimAmount(0.6f) }
+        field.setOnEditorActionListener { _, _, _ -> finish(); true }
+        field.requestFocus()
     }
 
     /** Null animates loading; for countdowns set progress to fraction × max as time changes. */

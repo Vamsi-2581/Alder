@@ -309,6 +309,13 @@
     <string name="featured_home_hint">Mostra i migliori consigli e le tendenze sotto Continua a guardare.</string>
     <string name="blur_thumbnails">Sfoca le miniature degli episodi</string>
     <string name="blur_thumbnails_hint">Sfoca le immagini degli episodi non visti nelle guide per evitare spoiler.</string>
+    <string name="ratings_source">Valutazioni</string>
+    <string name="ratings_source_hint">Sceglie le valutazioni nelle pagine dei titoli e nella Home. Letterboxd vale solo per i film e richiede una chiave MDBList. Le serie usano sempre IMDb.</string>
+    <string name="ratings_both">Entrambe</string>
+    <string name="mdblist_key">Chiave MDBList</string>
+    <string name="mdblist_key_hint">La tua chiave API gratuita da mdblist.com/preferences. Alder la usa solo per le valutazioni Letterboxd.</string>
+    <string name="key_not_set">Non impostata</string>
+    <string name="key_set">Impostata</string>
     <string name="app_language">Lingua dell’app</string>
     <string name="app_language_hint">Menu, pulsanti e impostazioni appaiono in questa lingua. Titoli e descrizioni arrivano dai tuoi add-on.</string>
     <string name="tv_language">Lingua della TV</string>

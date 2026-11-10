@@ -309,6 +309,13 @@
     <string name="featured_home_hint">Mostra as principais recomendações e tendências abaixo de Continuar assistindo.</string>
     <string name="blur_thumbnails">Desfocar miniaturas de episódios</string>
     <string name="blur_thumbnails_hint">Desfoca imagens de episódios não assistidos nos guias para evitar spoilers.</string>
+    <string name="ratings_source">Avaliações</string>
+    <string name="ratings_source_hint">Escolhe as avaliações nas páginas de títulos e no início. Letterboxd é só para filmes e precisa de uma chave do MDBList. As séries usam sempre IMDb.</string>
+    <string name="ratings_both">Ambas</string>
+    <string name="mdblist_key">Chave do MDBList</string>
+    <string name="mdblist_key_hint">Sua chave de API gratuita em mdblist.com/preferences. O Alder a usa apenas para avaliações do Letterboxd.</string>
+    <string name="key_not_set">Não definida</string>
+    <string name="key_set">Definida</string>
     <string name="app_language">Idioma do app</string>
     <string name="app_language_hint">Menus, botões e configurações aparecem neste idioma. Títulos e descrições vêm dos seus complementos.</string>
     <string name="tv_language">Idioma da TV</string>

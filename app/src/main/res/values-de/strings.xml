@@ -305,6 +305,13 @@
     <string name="featured_home_hint">Zeigt Top-Empfehlungen und Trends unter Weiterschauen.</string>
     <string name="blur_thumbnails">Folgenbilder unscharf machen</string>
     <string name="blur_thumbnails_hint">Macht Bilder ungesehener Folgen in Serienübersichten unscharf, um Spoiler zu vermeiden.</string>
+    <string name="ratings_source">Bewertungen</string>
+    <string name="ratings_source_hint">Wählt die Bewertungen auf Titelseiten und der Startseite. Letterboxd gilt nur für Filme und braucht einen MDBList-Schlüssel. Serien zeigen immer IMDb.</string>
+    <string name="ratings_both">Beide</string>
+    <string name="mdblist_key">MDBList-Schlüssel</string>
+    <string name="mdblist_key_hint">Dein kostenloser API-Schlüssel von mdblist.com/preferences. Alder nutzt ihn nur für Letterboxd-Bewertungen.</string>
+    <string name="key_not_set">Nicht festgelegt</string>
+    <string name="key_set">Festgelegt</string>
     <string name="app_language">App-Sprache</string>
     <string name="app_language_hint">Menüs, Schaltflächen und Einstellungen erscheinen in dieser Sprache. Titel und Beschreibungen kommen von deinen Add-ons.</string>
     <string name="tv_language">TV-Sprache</string>

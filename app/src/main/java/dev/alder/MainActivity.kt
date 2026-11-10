@@ -320,8 +320,7 @@ class MainActivity : Screen() {
     private lateinit var heroName: TextView
     private lateinit var heroLogo: ImageView
     private lateinit var heroFacts: TextView
-    private lateinit var heroRating: TextView
-    private lateinit var heroScore: TextView
+    private lateinit var heroRatings: LinearLayout
     private var heroBottom = 0 // px from the screen's foot to the hero block, for a poster row
     private var wideRow = false // the row the remote is in has wide cards (Continue Watching): the hero sits lower
     private lateinit var heroAbout: TextView
@@ -1088,9 +1087,8 @@ class MainActivity : Screen() {
         // adjustViewBounds resets the scale type to FIT_CENTER, so FIT_START comes after it (logo on the margin).
         heroLogo = ImageView(this).apply { adjustViewBounds = true; scaleType = ImageView.ScaleType.FIT_START; maxHeight = dp(55) }
         heroFacts = text("", SMALL, color = TEXT_2).onArt().apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-        // A small tag, as tall as the letters: SMALL's leading and font padding made it a block twice the mock's.
-        heroRating = imdbTag().apply { visibility = View.GONE }
-        heroScore = text("", SMALL, color = TEXT_2).onArt().apply { visibility = View.GONE }
+        // Small tags, as tall as the letters: SMALL's leading and font padding made them blocks twice the mock's.
+        heroRatings = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         heroAdded = text("", SMALL, color = TEXT_3).onArt().apply { visibility = View.GONE }
         heroAbout = text("", BODY, color = TEXT).onArt().apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
         heroResume = pill(R.string.action_resume, R.drawable.ic_play).apply {
@@ -1109,8 +1107,7 @@ class MainActivity : Screen() {
             LinearLayout(this).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(heroFacts)
-                addView(heroRating, wrap().apply { marginStart = dp(10) })
-                addView(heroScore, wrap().apply { marginStart = dp(6) })
+                addView(heroRatings)
                 addView(heroAdded, wrap().apply { marginStart = dp(6) })
             }.marginTop(8),
             heroAbout.marginTop(8),
@@ -1154,11 +1151,20 @@ class MainActivity : Screen() {
         else factsList += listOfNotNull(year, genre, length)
         heroFacts.text = factsList.joinToString(DOT)
         val rating = meta?.rating ?: item.facts.firstOrNull { it.startsWith("IMDb") }?.removePrefix("IMDb ")
-        heroRating.visibility = if (rating.isNullOrBlank()) View.GONE else View.VISIBLE
-        heroScore.visibility = heroRating.visibility
-        heroScore.text = rating
+        // Letterboxd comes from this session or the disk at once; a film never asked yet fills in when MDBList answers.
+        val wantsLetterboxd = Settings.wantsLetterboxd(this, item.type, item.id)
+        val letterboxdScore = if (wantsLetterboxd) knownLetterboxd(item.id) else null
+        if (wantsLetterboxd && letterboxdScore == null) {
+            val key = Settings.mdblistKey(this)
+            background({ letterboxd(item.id, key) }) { r ->
+                if (r.getOrNull() != null && heroItem === item && mode == Mode.BROWSE) showHero(item)
+            }
+        }
+        val ratings = shownRatings(Settings.ratings(this), rating, letterboxdScore)
+        heroRatings.removeAllViews()
+        addRatings(heroRatings, ratings)
         // Leads with a dot only when facts or a rating sit before it (a title with no details yet showed "· Added").
-        val lead = if (heroFacts.text.isEmpty() && heroRating.visibility == View.GONE) "" else "·  "
+        val lead = if (heroFacts.text.isEmpty() && ratings.isEmpty()) "" else "·  "
         heroAdded.text = item.addedAt?.let { lead + getString(R.string.added_when, addedAgo(it)) } ?: ""
         (heroAdded.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.marginStart = if (lead.isEmpty()) 0 else dp(6)
         heroAdded.visibility = if (page == Page.LIBRARY && heroAdded.text.isNotEmpty()) View.VISIBLE else View.GONE
