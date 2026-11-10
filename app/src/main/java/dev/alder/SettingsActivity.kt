@@ -357,6 +357,9 @@ class SettingsActivity : Screen() {
             isVerticalScrollBarEnabled = false
             clipToPadding = false
             setPadding(dp(12), dp(6), dp(12), dp(12))
+            // Its parent lets children draw past it (the glow), so the frame clips the rows itself.
+            outlineProvider = android.view.ViewOutlineProvider.BOUNDS
+            clipToOutline = true
             addView(detailRows)
         }
         hint = text("", SMALL, color = TEXT_2).onArt().apply { setPadding(dp(12), 0, dp(20), 0) }
