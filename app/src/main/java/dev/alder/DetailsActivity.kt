@@ -125,6 +125,7 @@ class DetailsActivity : Screen() {
     private var selectedSeason = 1
     private var episodeRows = emptyList<View>()
     private var meta: Meta? = null
+    private val episodic get() = hasEpisodes(type, meta?.videos)
     private var item: JSONObject? = null // the title's library item: progress and whether it's in My List
     private var itemChangedHere = false
     private var similarRequested = false
@@ -132,6 +133,8 @@ class DetailsActivity : Screen() {
     private var trailerRequested = false
     private var certificate: String? = null
     private var certificateRequested = false
+    private var letterboxdScore: String? = null
+    private var letterboxdRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -170,8 +173,8 @@ class DetailsActivity : Screen() {
             richCast = m.castMembers
             certificate = m.certification ?: certificate
             showHero(m)
-            if (type == "series" && m.videos.isNotEmpty()) buildGuide(m.videos)
-            if (type == "movie" && !similarRequested) { similarRequested = true; loadSimilar() }
+            if (hasEpisodes(type, m.videos) && m.videos.isNotEmpty()) buildGuide(m.videos)
+            if (!hasEpisodes(type, m.videos) && !similarRequested) { similarRequested = true; loadSimilar() }
             loadRichCast()
             if (!certificateRequested && certificate == null && m.id.startsWith("tt")) {
                 certificateRequested = true
@@ -179,6 +182,18 @@ class DetailsActivity : Screen() {
                     val resolved = r.getOrNull()
                     if (resolved != null && resolved != certificate) {
                         certificate = resolved
+                        if (!guideOpen && !infoOpen && !similarOpen && !filmographyOpen) showHero(meta)
+                    }
+                }
+            }
+            if (!letterboxdRequested && Settings.wantsLetterboxd(this, type, m.id)) {
+                letterboxdRequested = true
+                letterboxdScore = knownLetterboxd(m.id)
+                val key = Settings.mdblistKey(this)
+                background({ letterboxd(m.id, key, fresh = true) }) { r ->
+                    val score = r.getOrNull()
+                    if (score != null && score != letterboxdScore) {
+                        letterboxdScore = score
                         if (!guideOpen && !infoOpen && !similarOpen && !filmographyOpen) showHero(meta)
                     }
                 }
@@ -223,7 +238,9 @@ class DetailsActivity : Screen() {
         val title = text(m?.name ?: name, SERIF_HERO, serif = true).onArt().apply {
             maxLines = 2; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.BOTTOM or Gravity.START
             // The box is a fixed height: at large font sizes a two-line name shrinks to fit instead of clipping.
-            setAutoSizeTextTypeUniformWithConfiguration(20, SERIF_HERO.toInt(), 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+            // Android 8+ only; older TVs ellipsize the second line instead.
+            if (android.os.Build.VERSION.SDK_INT >= 26)
+                setAutoSizeTextTypeUniformWithConfiguration(20, SERIF_HERO.toInt(), 1, android.util.TypedValue.COMPLEX_UNIT_SP)
         }
         val titleArea = FrameLayout(this).apply {
             addView(title, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM or Gravity.START))
@@ -249,7 +266,7 @@ class DetailsActivity : Screen() {
             stack.addView(error.marginTop(16))
             error.post { error.getChildAt(2).requestFocus() }
         } else {
-            val length = if (type == "series") m.videos.map { it.season }.filter { it > 0 }.distinct().size
+            val length = if (hasEpisodes(type, m.videos)) m.videos.map { it.season }.filter { it > 0 }.distinct().size
                 .takeIf { it > 0 }?.let(::seasons) else m.runtime
             val facts = listOfNotNull(m.year, m.genres.firstOrNull(), length).joinToString(DOT)
             val factRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -269,15 +286,10 @@ class DetailsActivity : Screen() {
             factRow.addView(text(facts, SMALL, color = TEXT_2).onArt().apply {
                 maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             })
-            m.rating?.let { rating ->
+            val ratings = shownRatings(Settings.ratings(this), m.rating, letterboxdScore)
+            if (ratings.isNotEmpty()) {
                 factRow.addView(text(DOT, SMALL, color = TEXT_2).onArt())
-                factRow.addView(text("IMDb", 9.5f, bold = true, color = BASE).apply {
-                    includeFontPadding = false
-                    setLineSpacing(0f, 1f)
-                    setPadding(dp(5), dp(2), dp(5), dp(2))
-                    background = rounded(TUNGSTEN, 3)
-                })
-                factRow.addView(text(rating, SMALL, color = TEXT_2).onArt(), wrap().apply { marginStart = dp(6) })
+                addRatings(factRow, ratings, tagSp = 9.5f, firstGap = 0)
             }
             stack.addView(factRow, wrap().apply { topMargin = dp(12) })
             m.description?.takeIf { it.isNotBlank() }?.let {
@@ -303,7 +315,7 @@ class DetailsActivity : Screen() {
         hero.addView(stack, FrameLayout.LayoutParams(dp(HERO_W), -2, Gravity.BOTTOM or Gravity.START).apply {
             leftMargin = dp(PAD); bottomMargin = dp(92)
         })
-        val hasEpisodes = type == "series" && m?.videos?.isNotEmpty() == true
+        val hasEpisodes = hasEpisodes(type, m?.videos) && m?.videos?.isNotEmpty() == true
         if (hasEpisodes || ::similarOverlay.isInitialized) {
             hero.addView(caps(if (hasEpisodes) R.string.details_episodes_below else R.string.details_more_below, TEXT_2).onArt().apply {
                 isFocusable = true
@@ -341,7 +353,7 @@ class DetailsActivity : Screen() {
 
         val hasTrailer = m.trailerStreams.isNotEmpty() || m.trailerYtId != null || imdbTrailers.isNotEmpty()
 
-        if (type == "series" && unairedNext != null) {
+        if (episodic && unairedNext != null) {
             val airDate = airDay(unairedNext.released) ?: getString(R.string.details_airs_soon)
             val caughtUp = getString(if (airedVideos.isEmpty()) R.string.details_premiere else R.string.details_up_to_date,
                 unairedNext.season, unairedNext.episode, airDate)
@@ -892,8 +904,9 @@ class DetailsActivity : Screen() {
                 intArrayOf(0xEB0E0C0A.toInt(), 0xD90E0C0A.toInt(), 0x990E0C0A.toInt()))
         }, FrameLayout.LayoutParams(-1, -1))
 
-        val facts = listOfNotNull(m.year, m.runtime,
-            m.genres.take(2).joinToString(" / ").ifEmpty { null }, m.rating?.let { "IMDb $it" }).joinToString(DOT)
+        val facts = (listOfNotNull(m.year, m.runtime,
+            m.genres.take(2).joinToString(" / ").ifEmpty { null }) +
+            shownRatings(Settings.ratings(this), m.rating, letterboxdScore).map { (source, value) -> "$source $value" }).joinToString(DOT)
 
         val content = column(Gravity.START).apply {
             clipChildren = false
@@ -1571,7 +1584,7 @@ class DetailsActivity : Screen() {
             if (infoOpen) { root.removeView(infoOverlay); infoOpen = false }
             hero.visibility = View.VISIBLE
             showHero(meta)
-            meta?.videos?.takeIf { type == "series" && it.isNotEmpty() }?.let(::buildGuide)
+            meta?.videos?.takeIf { episodic && it.isNotEmpty() }?.let(::buildGuide)
             if (wasGuide) showGuide()
         }
     }
@@ -1634,8 +1647,8 @@ class DetailsActivity : Screen() {
             }
             if (!infoOpen && !similarOpen && !filmographyOpen && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
                 currentFocus?.let { isInside(it, hero) } == true &&
-                (if (type == "series") ::guide.isInitialized else ::similarOverlay.isInitialized)) {
-                if (type == "series") showGuide() else showSimilar()
+                (if (episodic) ::guide.isInitialized else ::similarOverlay.isInitialized)) {
+                if (episodic) showGuide() else showSimilar()
                 return true
             }
         }

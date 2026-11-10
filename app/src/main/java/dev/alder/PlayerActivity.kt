@@ -308,6 +308,7 @@ class PlayerActivity : Screen() {
 
     // A series' episodes (for the next one and Stremio's watched ticks), from the meta addon's saved answer when there is one.
     private var meta: Meta? = null
+    private val episodic get() = hasEpisodes(type, meta?.videos)
     private var tickedWatched = false
     // "Up next": offered during credits; the current episode keeps playing until the viewer chooses the next one.
     private lateinit var upNextPanel: FrameLayout
@@ -398,6 +399,7 @@ class PlayerActivity : Screen() {
                 CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK, null))
             setBackgroundColor(Color.BLACK)
         }
+        applyPictureFit()
         status = text("", BODY).onArt().apply {
             gravity = Gravity.CENTER
             maxWidth = dp(440)
@@ -515,7 +517,7 @@ class PlayerActivity : Screen() {
                     }
                     val upcoming = nextVideo()
                     // shortcut: sub-two-minute series streams are treated as addon placeholders; revisit for short-form shows.
-                    if (type == "series" && !plausibleEpisode(player.duration)) {
+                    if (episodic && !plausibleEpisode(player.duration)) {
                         started = false // retry from the original resume point, not the placeholder's short ending
                         next("source ended as a short placeholder")
                     } else if (upcoming == null || upNextDismissed || stopAfter) finish()
@@ -629,47 +631,25 @@ class PlayerActivity : Screen() {
             begin(0L)
             return
         }
-        if (sources.isEmpty()) {
-            pauseFacts.text = getString(R.string.finding_sources)
-            pauseFacts.visibility = View.VISIBLE
-            bar.isIndeterminate = true
-            showControls(null)
-            resolvingStreams = StreamsResolver.resolve(
-                context = this,
-                type = type,
-                videoId = videoId,
-                metaId = metaId,
-                authKey = key,
-                onReady = { best ->
-                    resolvingStreams = null
-                    if (isFinishing || isDestroyed) return@resolve
-                    sources = best
-                    refreshBadges()
-                    pauseFacts.text = getString(R.string.player_starting_stream)
-                    val resumeToStart = pendingResume ?: known ?: 0L
-                    begin(resumeToStart)
-                },
-                onFallback = {
-                    resolvingStreams = null
-                    if (isFinishing || isDestroyed) return@resolve
-                    startActivity(Intent(this, StreamsActivity::class.java).putExtras(intent))
-                    finish()
-                }
-            )
-        }
         val waitMs = if (pickedSub?.startsWith("addon:") == true) 3_500L else SUB_WAIT
         val stopWaiting = Runnable { subsAnswered = true; waiting?.let(::begin) }
         main.postDelayed(stopWaiting, waitMs)
-        background({
+        // Asked with the stream's file name and size when they're known, so the addon puts files for that release
+        // first. A stream found here (Continue Watching) asks again once it's known; an older answer never replaces a newer one.
+        var subsAsked = 0
+        var subsShown = 0
+        fun askSubs(stream: Stream?) = (++subsAsked).let { round -> background({
             // Every language: the profile's subtitle language and English first, three files each in the addon's order,
             // then one file for each other language by name, so the list stays short enough for a remote.
             val all = Stremio.addons(key).filter { it.serves("subtitles", type, videoId) }
-                .flatMap { a -> runCatching { a.subtitles(type, videoId) }
+                .flatMap { a -> runCatching { a.subtitles(type, videoId, stream) }
                     .onFailure { android.util.Log.w("Alder", "subtitles from ${a.name} failed", it) }.getOrDefault(emptyList()) }
             all.groupBy { Languages.code(it.lang) ?: it.lang }.entries
                 .sortedWith(compareBy({ it.key != wantSub }, { it.key != "en" }, { Languages.name(it.key) }))
                 .flatMap { (code, files) -> files.take(if (code == wantSub || code == "en") 3 else 1) }
         }) { r ->
+            if (round < subsShown || isFinishing || isDestroyed) return@background
+            subsShown = round
             addonSubs = r.getOrDefault(emptyList())
             android.util.Log.i("Alder", "addon subtitles: ${addonSubs.size}", r.exceptionOrNull())
             if (options.visibility == View.VISIBLE) {
@@ -691,6 +671,36 @@ class PlayerActivity : Screen() {
             main.removeCallbacks(stopWaiting)
             if (chosenSub == null) chosenSub = exact ?: addonSubs.firstOrNull { Languages.same(it.lang, wantSub) } // attached, picked above
             stopWaiting.run()
+        } }
+        askSubs(sources.firstOrNull())
+        if (sources.isEmpty()) {
+            pauseFacts.text = getString(R.string.finding_sources)
+            pauseFacts.visibility = View.VISIBLE
+            bar.isIndeterminate = true
+            showControls(null)
+            resolvingStreams = StreamsResolver.resolve(
+                context = this,
+                type = type,
+                videoId = videoId,
+                metaId = metaId,
+                authKey = key,
+                onReady = { best ->
+                    resolvingStreams = null
+                    if (isFinishing || isDestroyed) return@resolve
+                    sources = best
+                    best.firstOrNull()?.takeIf { subtitleExtras(it.filename, it.size).isNotEmpty() }?.let(::askSubs)
+                    refreshBadges()
+                    pauseFacts.text = getString(R.string.player_starting_stream)
+                    val resumeToStart = pendingResume ?: known ?: 0L
+                    begin(resumeToStart)
+                },
+                onFallback = {
+                    resolvingStreams = null
+                    if (isFinishing || isDestroyed) return@resolve
+                    startActivity(Intent(this, StreamsActivity::class.java).putExtras(intent))
+                    finish()
+                }
+            )
         }
         // The stream starts at once from what's known here (the intent, or the library saved on the TV) instead of
         // waiting a round trip to Stremio for the resume point; Stremio's answer corrects it if it moved elsewhere.
@@ -941,7 +951,7 @@ class PlayerActivity : Screen() {
         // Nothing is saved until a picture shows: a source that never starts would otherwise reset the resume point.
         // Live TV has no progress to keep, nor does a channel or event whose stream doesn't say it's live.
         if (isTrailer || !started || player.isCurrentMediaItemLive || isLiveType(type)) return
-        if (type == "series" && !plausibleEpisode(player.duration)) return
+        if (episodic && !plausibleEpisode(player.duration)) return
         val item = item ?: return
         val position = player.currentPosition
         val duration = player.duration.takeIf { it > 0 } ?: return
@@ -1039,7 +1049,7 @@ class PlayerActivity : Screen() {
     }
 
     private fun showUpNext() {
-        if (type == "series" && !plausibleEpisode(player.duration)) return
+        if (episodic && !plausibleEpisode(player.duration)) return
         if (stopAfter || stillPanel.visibility == View.VISIBLE) return // Sleep: After this episode
         val next = nextVideo() ?: return
         if (offeringLower) dismissStall()
@@ -1153,7 +1163,7 @@ class PlayerActivity : Screen() {
         when {
             stopAfter -> { stopAfter = false; setSleepAt(System.currentTimeMillis() + SLEEP_TIMER) }
             sleepAt > 0 -> setSleepAt(0)
-            type == "series" -> stopAfter = true
+            episodic -> stopAfter = true
             else -> setSleepAt(System.currentTimeMillis() + SLEEP_TIMER)
         }
         intent.putExtra("stopAfter", stopAfter)
@@ -1284,7 +1294,7 @@ class PlayerActivity : Screen() {
 
     private fun fetchSegments() {
         val parts = videoId.split(":")
-        if (type != "series" || !metaId.startsWith("tt") || parts.size < 3) return
+        if (!episodic || !metaId.startsWith("tt") || parts.size < 3) return
         background({
             val json = JSONObject(Http.get("https://api.introdb.app/segments?imdb_id=${parts[0]}&season=${parts[1]}&episode=${parts[2]}"))
             fun part(name: String) = json.optJSONObject(name)?.let { seg ->
@@ -2692,36 +2702,9 @@ class PlayerActivity : Screen() {
         syncPanel.addView(caps(R.string.subtitle_size, TEXT_3), wrap().apply { bottomMargin = dp(4) })
         val sizes = listOf(80 to R.string.size_small, 100 to R.string.size_medium, 130 to R.string.size_large,
             160 to R.string.size_extra_large).map { (size, words) -> size to getString(words) }
-        var currentSubSize = Settings.subtitleSize(this)
-        val sizePills = mutableListOf<TextView>()
-        val sizeRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        sizes.forEachIndexed { idx, (sizeValue, sizeLabel) ->
-            val isCur = currentSubSize == sizeValue
-            val p = text(sizeLabel, SMALL, bold = true, color = if (isCur) TUNGSTEN else TEXT_2).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                background = if (isCur) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                rowFocus(8, rest = { if (currentSubSize == sizeValue) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
-                    setTextColor(if (has || currentSubSize == sizeValue) TEXT else TEXT_2)
-                }
-                setOnClickListener {
-                    currentSubSize = sizeValue
-                    Settings.setSubtitleSize(this@PlayerActivity, sizeValue)
-                    view.subtitleView?.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * sizeValue / 100f)
-                    sizePills.forEachIndexed { i, pill ->
-                        val active = sizes[i].first == currentSubSize
-                        pill.background = if (active) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                        pill.setTextColor(if (active) TUNGSTEN else TEXT_2)
-                    }
-                }
-            }
-            sizePills.add(p)
-            sizeRow.addView(p, LinearLayout.LayoutParams(0, dp(30), 1f).apply {
-                if (idx < sizes.lastIndex) marginEnd = dp(5)
-            })
+        val sizeRow = pillRow(sizes, Settings.subtitleSize(this)) { sizeValue ->
+            Settings.setSubtitleSize(this@PlayerActivity, sizeValue)
+            view.subtitleView?.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * sizeValue / 100f)
         }
         syncPanel.addView(sizeRow, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(10) })
 
@@ -2730,37 +2713,23 @@ class PlayerActivity : Screen() {
 
         syncPanel.addView(caps(R.string.background_box, TEXT_3), wrap().apply { bottomMargin = dp(4) })
         val bgOptions = listOf(true to getString(R.string.state_on), false to getString(R.string.state_off))
-        val bgPills = mutableListOf<TextView>()
-        val bgRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        bgOptions.forEachIndexed { idx, (bgValue, bgLabel) ->
-            val isCur = currentBg == bgValue
-            val p = text(bgLabel, SMALL, bold = true, color = if (isCur) TUNGSTEN else TEXT_2).apply {
-                gravity = Gravity.CENTER
-                maxLines = 1
-                background = if (isCur) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                rowFocus(8, rest = { if (currentBg == bgValue) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
-                    setTextColor(if (has || currentBg == bgValue) TEXT else TEXT_2)
-                }
-                setOnClickListener {
-                    currentBg = bgValue
-                    Settings.setSubtitleBackground(this@PlayerActivity, bgValue)
-                    applySubtitleStyle()
-                    bgPills.forEachIndexed { i, pill ->
-                        val active = bgOptions[i].first == currentBg
-                        pill.background = if (active) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
-                        pill.setTextColor(if (active) TUNGSTEN else TEXT_2)
-                    }
-                }
-            }
-            bgPills.add(p)
-            bgRow.addView(p, LinearLayout.LayoutParams(0, dp(30), 1f).apply {
-                if (idx < bgOptions.lastIndex) marginEnd = dp(6)
-            })
+        val bgRow = pillRow(bgOptions, currentBg, gap = 6) { bgValue ->
+            currentBg = bgValue
+            Settings.setSubtitleBackground(this@PlayerActivity, bgValue)
+            applySubtitleStyle()
         }
         syncPanel.addView(bgRow, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(14) })
+
+        syncPanel.addView(divider().apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(4), 0, dp(10)) }
+        })
+        syncPanel.addView(caps(R.string.picture_fit, TUNGSTEN), wrap().apply { bottomMargin = dp(6) })
+        val fits = listOf("fit" to getString(R.string.picture_fit_fit), "zoom" to getString(R.string.picture_fit_zoom),
+            "stretch" to getString(R.string.picture_fit_stretch))
+        syncPanel.addView(pillRow(fits, Settings.pictureFit(this)) { fit ->
+            Settings.setPictureFit(this@PlayerActivity, fit)
+            applyPictureFit()
+        }, LinearLayout.LayoutParams(-1, dp(30)).apply { bottomMargin = dp(14) })
 
         syncPanel.addView(divider().apply {
             layoutParams = LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(4), 0, dp(10)) }
@@ -2888,6 +2857,47 @@ class PlayerActivity : Screen() {
     private fun timing(delay: Long) = formatTiming(delay, getString(R.string.timing_on_time),
         getString(R.string.timing_earlier), getString(R.string.timing_later))
 
+    /** One choice as a row of pills (subtitle size, background box, picture fit); the picked one is in tungsten. */
+    private fun <T> pillRow(options: List<Pair<T, String>>, current: T, gap: Int = 5, pick: (T) -> Unit): LinearLayout {
+        var chosen = current
+        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val pills = options.mapIndexed { i, (value, label) ->
+            text(label, SMALL, bold = true).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                rowFocus(8, rest = { if (chosen == value) rounded(0x3DF3D9B1.toInt(), 8) else glass(8) }) { has ->
+                    setTextColor(if (has || chosen == value) TEXT else TEXT_2)
+                }
+                row.addView(this, LinearLayout.LayoutParams(0, dp(30), 1f).apply { if (i < options.lastIndex) marginEnd = dp(gap) })
+            }
+        }
+        fun paint() = pills.forEachIndexed { i, pill ->
+            val on = options[i].first == chosen
+            pill.background = if (on) rounded(0x3DF3D9B1.toInt(), 8) else glass(8)
+            pill.setTextColor(if (on) TUNGSTEN else TEXT_2)
+        }
+        pills.forEachIndexed { i, pill -> pill.setOnClickListener { chosen = options[i].first; pick(chosen); paint() } }
+        paint()
+        return row
+    }
+
+    /**
+     * Fit, Zoom or Stretch. Media3 keeps the subtitles inside the video's frame, which Zoom makes larger than the screen,
+     * so under Zoom they move onto the screen itself and stay readable; Fit and Stretch put them back.
+     */
+    private fun applyPictureFit() {
+        val fit = Settings.pictureFit(this)
+        view.resizeMode = resizeModeFor(fit)
+        val subs = view.subtitleView ?: return
+        val frame = view.findViewById<ViewGroup>(androidx.media3.ui.R.id.exo_content_frame) ?: return
+        val home: ViewGroup = if (fit == "zoom") view else frame
+        if (subs.parent === home) return
+        (subs.parent as? ViewGroup)?.removeView(subs)
+        val at = if (home === view) view.indexOfChild(frame) + 1
+            else frame.indexOfChild(frame.findViewById(androidx.media3.ui.R.id.exo_buffering)).takeIf { it >= 0 } ?: frame.childCount
+        home.addView(subs, at, FrameLayout.LayoutParams(-1, -1))
+    }
+
     private fun sleep() = sleepLabel(stopAfter, sleepAt, System.currentTimeMillis(), getString(R.string.sleep_after_episode),
         getString(R.string.sleep_in_minutes), getString(R.string.state_off))
 
@@ -2899,7 +2909,7 @@ class PlayerActivity : Screen() {
         main.removeCallbacks(skipTask)
         main.removeCallbacks(loadingTask)
         player.pause()
-        if (isTrailer || !watched || player.isCurrentMediaItemLive || isLiveType(type) || type == "series" && !plausibleEpisode(player.duration)) return
+        if (isTrailer || !watched || player.isCurrentMediaItemLive || isLiveType(type) || episodic && !plausibleEpisode(player.duration)) return
         record()
         // The player's own episode list first: Home's Resume passes no next episode when the title's details weren't in
         // yet, and a finished episode with no next one drops the title out of Continue Watching.
@@ -3049,4 +3059,11 @@ private class SeekBar(context: Context) : View(context) {
         paint.color = Screen.TEXT
         if (duration > 0) canvas.drawCircle(x(position), y, knob, paint)
     }
+}
+
+/** Media3's resize mode for Settings' picture fit: Zoom fills the screen and crops, Stretch fills it and changes the shape. */
+internal fun resizeModeFor(fit: String) = when (fit) {
+    "zoom" -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "stretch" -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+    else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 }

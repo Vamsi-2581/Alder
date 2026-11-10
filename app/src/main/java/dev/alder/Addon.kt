@@ -171,11 +171,18 @@ class Addon(val descriptor: JSONObject) {
      */
     class Streams(val playable: List<Stream>, val torrents: Int, val links: Int)
 
-    /** Subtitle files for one video (OpenSubtitles and co. through Stremio's `subtitles` resource). */
-    fun subtitles(type: String, videoId: String): List<Subtitle> =
-        get(false, "subtitles", type, videoId).optJSONArray("subtitles").objects().mapNotNull { s ->
+    /**
+     * Subtitle files for one video (OpenSubtitles and co. through Stremio's `subtitles` resource). The [stream]'s size
+     * and file name, when known, go along as Stremio's extras so the addon puts files made for that release first.
+     */
+    fun subtitles(type: String, videoId: String, stream: Stream? = null): List<Subtitle> {
+        val extras = subtitleExtras(stream?.filename, stream?.size ?: 0L)
+        val path = url(arrayOf("subtitles", type, videoId))
+        val request = if (extras.isEmpty()) path else path.removeSuffix(".json") + "/" + extras + ".json"
+        return JSONObject(Http.get(request, false)).optJSONArray("subtitles").objects().mapNotNull { s ->
             Subtitle(s.text("url") ?: return@mapNotNull null, s.text("lang") ?: "und", name)
         }
+    }
 
     // Ids such as "tt0903747:1:2" keep their colons, like Stremio's own requests.
     private fun url(path: Array<out String>) = base + "/" + path.joinToString("/") { Uri.encode(it, ":=") } + ".json"
@@ -297,6 +304,25 @@ class CastMember(
 class Video(val id: String, val title: String, val season: Int, val episode: Int, val thumbnail: String?,
             val overview: String?, val released: String?)
 
+/**
+ * Whether a title has episodes. A type is only a word an add-on picks ("anime", "channel", "podcast"), so for any type
+ * but movie, series and live, the title's own videos decide, as stremio-core does.
+ */
+internal fun hasEpisodes(type: String, videos: List<Video>?) = when {
+    type == "series" -> true
+    type == "movie" || isLiveType(type) -> false
+    else -> !videos.isNullOrEmpty()
+}
+
+/**
+ * Stremio's subtitle extras, "videoSize=1234&filename=Show.S01E02.mkv", or "" when neither is known (a size of 0 is
+ * unknown). Encoded like a URL path part, so a space is %20, not +.
+ */
+internal fun subtitleExtras(filename: String?, size: Long): String = listOfNotNull(
+    "videoSize=$size".takeIf { size > 0 },
+    filename?.takeIf { it.isNotBlank() }?.let { "filename=" + java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") },
+).joinToString("&")
+
 class Stream(
     val title: String, val description: String, val url: String, val headers: Map<String, String>,
     val size: Long, val filename: String?, val bingeGroup: String?,
@@ -416,7 +442,11 @@ fun JSONArray?.strings(): List<String> = items().filterIsInstance<String>()
 internal fun audioLanguagesIn(text: String): Set<String> {
     val found = mutableSetOf<String>()
     // Regional indicators: two in a row make a country's flag, read in pairs so 🇺🇸🇪🇸 isn't also "SE".
-    val letters = text.codePoints().toArray().map { it - 0x1F1E6 }
+    // By hand: String.codePoints() needs Android 7.
+    val letters = buildList {
+        var at = 0
+        while (at < text.length) text.codePointAt(at).let { add(it - 0x1F1E6); at += Character.charCount(it) }
+    }
     var i = 0
     while (i < letters.size - 1) {
         if (letters[i] in 0..25 && letters[i + 1] in 0..25) {

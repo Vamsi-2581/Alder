@@ -41,6 +41,7 @@
     <string name="tab_shows">Shows</string>
     <string name="tab_movies">Movies</string>
     <string name="tab_live">Live</string>
+    <string name="tab_anime">Anime</string>
     <string name="tab_my_list">My List</string>
     <string name="nav_profile">Profile</string>
     <string name="nav_search">Search</string>
@@ -266,6 +267,10 @@
     <string name="subtitle_color_hint">The color of subtitle text.</string>
     <string name="subtitle_background">Subtitle background</string>
     <string name="subtitle_background_hint">A dark box behind subtitles keeps them readable in bright scenes.</string>
+    <string name="picture_fit">Picture</string>
+    <string name="picture_fit_fit">Fit</string>
+    <string name="picture_fit_zoom">Zoom</string>
+    <string name="picture_fit_stretch">Stretch</string>
     <string name="settings_profile_name">Profile %1$s</string>
     <string name="addons_installed">%1$d installed</string>
     <string name="addons_unavailable">Unavailable</string>
@@ -307,6 +312,18 @@
     <string name="featured_home_hint">Show top recommendations and trending rows below Continue Watching.</string>
     <string name="blur_thumbnails">Blur episode thumbnails</string>
     <string name="blur_thumbnails_hint">Blur pictures of unwatched episodes in show guides to avoid spoilers.</string>
+    <string name="ratings_source">Ratings</string>
+    <string name="ratings_source_hint">Choose the ratings on title pages and Home. Letterboxd is for films only and needs an MDBList key. Shows always use IMDb.</string>
+    <string name="ratings_both">Both</string>
+    <string name="mdblist_key">MDBList key</string>
+    <string name="mdblist_key_hint">Your free API key from mdblist.com/preferences. Alder uses it only to get Letterboxd ratings.</string>
+    <string name="key_not_set">Not set</string>
+    <string name="key_set">Set</string>
+    <string name="phone_entry_scan">Scan with a phone on the same Wi-Fi as this TV, then paste the key there.</string>
+    <string name="phone_entry_type">Type it instead</string>
+    <string name="phone_page_label">Paste the key</string>
+    <string name="phone_page_send">Send to TV</string>
+    <string name="phone_page_saved">Saved on the TV. You can close this page.</string>
     <string name="app_language">App language</string>
     <string name="app_language_hint">Menus, buttons and settings show in this language. Titles and descriptions come from your add-ons.</string>
     <string name="tv_language">TV language</string>

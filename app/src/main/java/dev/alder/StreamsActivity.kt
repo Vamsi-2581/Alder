@@ -185,26 +185,34 @@ class StreamsActivity : Screen() {
                 count.text = plural(R.plurals.streams_count, shown.size)
                 rows.removeAllViews()
                 cols.visibility = if (shown.isEmpty()) View.GONE else View.VISIBLE
-                if (shown.isEmpty()) {
+                val names = addons.map { it.name }
+                // Torrents count only for add-ons that gave nothing playable: "found only torrents" must be true.
+                val torrents = IntArray(addons.size) { i ->
+                    if (answers[i].orEmpty().any { it.isVideo && it.playableOn(tv) }) 0 else torrents[i]
+                }
+                val reasons = if (shown.isEmpty()) {
                     rows.addView(text(R.string.streams_none_playable, BODY, color = TEXT_2).onArt().apply {
                         setPadding(dp(12), dp(12), 0, 0)
                     })
                     val unplayable = answers.sumOf { a -> a.orEmpty().count { it.isVideo && !it.playableOn(tv) } }
-                    noSourceReasons(addons.map { it.name }, failures, torrents, links, unplayable, sourceWords).forEach { line ->
-                        rows.addView(text(line, SMALL, color = TEXT_2).onArt().apply { setPadding(dp(12), dp(8), dp(12), 0) },
-                            LinearLayout.LayoutParams(-1, -2))
-                    }
-                    // The first add-on a phone can fix: it found only torrents (no debrid service yet) or refused its key.
-                    addons.indices.firstOrNull { i ->
-                        addons[i].configureUrl != null && (failures[i]?.let(::refusedKey) ?: (torrents[i] > 0))
-                    }?.let { i -> setupCode(addons[i], torrentsOnly = failures[i] == null)?.let { rows.addView(it, LinearLayout.LayoutParams(-1, -2)) } }
-                    tryAgain(focusList)
+                    noSourceReasons(names, failures, torrents, links, unplayable, sourceWords)
                 } else {
                     val best = eligible.firstOrNull { it in shown }
                     shown.forEach { stream -> rows.addView(streamRow(stream, providers[stream].orEmpty(), stream === best),
                         LinearLayout.LayoutParams(-1, dp(ROW_H)).apply { bottomMargin = dp(2) }) }
-                    if (focusList) rows.getChildAt(0).requestFocus()
+                    // Other add-ons can still give nothing (torrents without a debrid service, a refused key): say so
+                    // under the list, or the viewer only sees that those add-ons are missing.
+                    hiddenSourceReasons(names, failures, torrents, sourceWords)
                 }
+                reasons.forEach { line ->
+                    rows.addView(text(line, SMALL, color = TEXT_2).onArt().apply { setPadding(dp(12), dp(8), dp(12), 0) },
+                        LinearLayout.LayoutParams(-1, -2))
+                }
+                // The first add-on a phone can fix: it found only torrents (no debrid service yet) or refused its key.
+                addons.indices.firstOrNull { i ->
+                    addons[i].configureUrl != null && (failures[i]?.let(::refusedKey) ?: (torrents[i] > 0))
+                }?.let { i -> setupCode(addons[i], torrentsOnly = failures[i] == null)?.let { rows.addView(it, LinearLayout.LayoutParams(-1, -2)) } }
+                if (shown.isEmpty()) tryAgain(focusList) else if (focusList) rows.getChildAt(0).requestFocus()
             }
             fun showList() {
                 listed = true
@@ -464,15 +472,26 @@ internal fun sourceSummary(s: Stream): String {
  */
 internal fun noSourceReasons(names: List<String>, failures: Array<Throwable?>, torrents: IntArray, links: IntArray, unplayable: Int,
                              words: SourceWords = SourceWords()): List<String> {
+    val linkOnly = names.indices.filter { failures[it] == null && torrents[it] == 0 && links[it] > 0 }.map { names[it] }
+    return (hiddenSourceReasons(names, failures, torrents, words) + listOfNotNull(
+        linkOnly.takeIf { it.isNotEmpty() }?.let { words.linksOnly(it.joinToString(", ")) },
+        unplayable.takeIf { it > 0 }?.let(words::unplayable),
+    )).ifEmpty { listOf(words.none()) }
+}
+
+/**
+ * The add-ons that gave nothing the viewer can fix, shown under a list that has other sources too: ones that failed,
+ * and ones that only found torrents (no debrid service). Browser links and formats the TV can't decode stay out: a
+ * trailer add-on or one 10-bit release would put a line under every list.
+ */
+internal fun hiddenSourceReasons(names: List<String>, failures: Array<Throwable?>, torrents: IntArray,
+                                 words: SourceWords = SourceWords()): List<String> {
     val failed = names.indices.filter { failures[it] != null }.map { "${names[it]} (${words.reason(failures[it]!!)})" }
     val torrentOnly = names.indices.filter { failures[it] == null && torrents[it] > 0 }.map { names[it] }
-    val linkOnly = names.indices.filter { failures[it] == null && torrents[it] == 0 && links[it] > 0 }.map { names[it] }
     return listOfNotNull(
         failed.takeIf { it.isNotEmpty() }?.let { words.failed(it.joinToString(", ")) },
         torrentOnly.takeIf { it.isNotEmpty() }?.let { words.torrentsOnly(it.joinToString(", ")) },
-        linkOnly.takeIf { it.isNotEmpty() }?.let { words.linksOnly(it.joinToString(", ")) },
-        unplayable.takeIf { it > 0 }?.let(words::unplayable),
-    ).ifEmpty { listOf(words.none()) }
+    )
 }
 
 /** The lines of [noSourceReasons]: English here, the viewer's language from StreamsActivity. */

@@ -165,11 +165,47 @@ class ScreenDesignTest {
         assertEquals(false, isAddonMessage("The Authentication"))
     }
 
+    @Test fun cardLoadWindowLimitsLoadedCardsAndUnloadsFarCards() {
+        val step = 120
+        val width = 960
+        val start = cardLoadWindow(0, width, step, 100)
+        assertEquals(0, start.loadStart)
+        assertEquals(14, start.loadEnd)
+        assertEquals(0, start.farLeftEnd)
+        assertEquals(20, start.farRightStart)
+
+        val middle = cardLoadWindow(50 * step, width, step, 100)
+        assertEquals(46, middle.loadStart)
+        assertEquals(64, middle.loadEnd)
+        assertEquals(38, middle.farLeftEnd)
+        assertEquals(70, middle.farRightStart)
+
+        val end = cardLoadWindow(95 * step, width, step, 100)
+        assertEquals(91, end.loadStart)
+        assertEquals(100, end.loadEnd)
+        assertEquals(83, end.farLeftEnd)
+        assertEquals(100, end.farRightStart)
+
+        // The pool runs the newest request first: the first card on the screen is asked for last.
+        assertEquals((8 until 14).toList() + (7 downTo 0).toList(), cardLoadOrder(start))
+        val order = cardLoadOrder(middle)
+        assertEquals(listOf(46, 47, 48, 49, 58), order.take(5))
+        assertEquals(50, order.last())
+        assertEquals((46 until 64).toSet(), order.toSet())
+    }
+
     @Test fun myListKeepsTheLastPartialRow() {
         assertEquals(0, listRowCount(0, 6))
         assertEquals(1, listRowCount(6, 6))
         assertEquals(2, listRowCount(7, 6))
         assertEquals(4, listRowCount(24, 6))
+    }
+
+    @Test fun eachCatalogRowKeepsItsOwnPlace() {
+        assertEquals(0, landingCard(from = 5, nextSelected = 0, nextSize = 20, grid = false))
+        assertEquals(3, landingCard(from = 5, nextSelected = 3, nextSize = 20, grid = false))
+        assertEquals(5, landingCard(from = 5, nextSelected = 0, nextSize = 6, grid = true))
+        assertEquals(1, landingCard(from = 5, nextSelected = 0, nextSize = 2, grid = true))
     }
 
     @Test fun catalogsContinueAfterTheFirstTwentyInSmallBatches() {
@@ -525,5 +561,29 @@ class ScreenDesignTest {
         assertEquals(0xFFF3EEE6.toInt(), subtitleColorValue("warm white"))
         assertEquals(0xFFFFFFFF.toInt(), subtitleColorValue("unknown"))
         assertEquals(0xFFFFFFFF.toInt(), subtitleColorValue(""))
+    }
+
+    @Test fun initialRowCardsExceedsScreenViewportToPreventSnap() {
+        assertEquals(14, initialRowCards(wide = false))
+        assertEquals(9, initialRowCards(wide = true))
+    }
+
+    @Test fun wideRowPacesRepeatKeyScrollsToMatchPosterVelocity() {
+        assertEquals(false, shouldSkipRepeat(held = false, wide = true, repeatCount = 1))
+        assertEquals(false, shouldSkipRepeat(held = true, wide = false, repeatCount = 1))
+        assertEquals(true, shouldSkipRepeat(held = true, wide = true, repeatCount = 1))
+        assertEquals(false, shouldSkipRepeat(held = true, wide = true, repeatCount = 2))
+        assertEquals(true, shouldSkipRepeat(held = true, wide = true, repeatCount = 3))
+        assertEquals(100L, rowGlideDuration(held = true, wide = true, repeatDelay = 50L))
+        assertEquals(50L, rowGlideDuration(held = true, wide = false, repeatDelay = 50L))
+        assertEquals(200L, rowGlideDuration(held = false, wide = true, repeatDelay = 50L))
+    }
+
+    @Test fun backdropArtPostponesCrossfadeWhileHoldingRemote() {
+        assertEquals(0L, artDelay(held = false, cached = true, ready = false))
+        assertEquals(120L, artDelay(held = false, cached = false, ready = false))
+        assertEquals(280L, artDelay(held = true, cached = true, ready = false))
+        assertEquals(280L, artDelay(held = true, cached = false, ready = false))
+        assertEquals(0L, artDelay(held = true, cached = true, ready = true))
     }
 }

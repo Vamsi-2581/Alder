@@ -18,11 +18,26 @@ Put changes that are not released under `## Unreleased`. Before each release, re
 ## Unreleased
 
 ### New
+<!-- Spotlight -->
+- **Anime and other catalogs.** Catalogs of anime, video channels and other types now show. Each type has its own page in the top bar, for example **Anime**. Before, Alder showed only movie, series and live catalogs. Anime with episodes has its episode list, **Next episode** and **Continue**, as a show does. **My List** shows these titles too.
+<!-- Spotlight -->
+- **Picture size.** You can make the picture fill the screen. In the player, select **Audio & subtitles → Sync & Style → Picture**. **Fit** shows all of the picture. **Zoom** fills the screen and cuts the edges. **Stretch** fills the screen and changes the shape. Alder keeps your choice for all videos.
+<!-- Spotlight -->
+- **Letterboxd ratings.** Alder can show the Letterboxd rating of a film next to the IMDb rating, or in its place. Select **Settings → Profile → Ratings**. Letterboxd ratings need a free MDBList key. Select **MDBList key** and scan the code with your phone, then paste the key on the phone. Shows always use IMDb.
 - **Alder website.** The House Lights website shows the TV app, setup steps, and a link to the latest APK.
 - Add an Alder website card image with the app screen and product text.
 
 ### Easier to use
+- **Subtitle match.** Alder sends the file name and size of the video to subtitle add-ons. The add-on shows subtitles for that release first, so the timing is correct more frequently.
 - **Alder website.** The site shows the app screens and makes the download and setup steps easy to find.
+
+### Fixes
+- **Long rows.** Alder releases poster memory for titles far off the screen. Rows stay fast when you move through many titles.
+- **Rows.** Each row on Shows and Movies keeps its own place. Before, a move to the next row went to the same position as in the last row.
+- **Smooth row motion.** Rows move smoothly when you move right fast. Live rows move at the same speed as poster rows. Background art waits until you stop on a title.
+- **Missing sources.** The source list tells you which add-ons gave no sources, and why. Before, Alder told you only when no source was available. An add-on that finds only torrents needs a debrid service.
+- **Backups.** Alder does not put profiles, sign-ins, or PINs in Android backups or device transfers. After a restore to a new TV, sign in to each profile again.
+- **Android 6 and 7.** Alder starts on Android 6 and 7 TVs. Before, Alder closed and the TV showed the home screen.
 
 ## 1.3.1
 

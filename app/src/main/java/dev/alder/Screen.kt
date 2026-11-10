@@ -71,13 +71,21 @@ internal fun filmGlow(pixels: IntArray): Int {
     return (0x8C shl 24) or ((red * scale).toInt() shl 16) or ((green * scale).toInt() shl 8) or (blue * scale).toInt()
 }
 
+// Hardware (GPU) bitmaps came in Android 8. Before it Bitmap.Config.HARDWARE does not exist, and touching it crashed
+// Alder on Android 6 and 7, so older TVs keep pictures in ordinary memory.
+internal val GPU_BITMAP: Bitmap.Config = if (android.os.Build.VERSION.SDK_INT >= 26) Bitmap.Config.HARDWARE else Bitmap.Config.ARGB_8888
+internal fun Bitmap.onGpu() = android.os.Build.VERSION.SDK_INT >= 26 && config == Bitmap.Config.HARDWARE
+/** This picture moved to GPU memory (Android 8+), the original recycled; older Android keeps it as it is. */
+internal fun Bitmap.toGpu(): Bitmap =
+    if (android.os.Build.VERSION.SDK_INT >= 26) copy(Bitmap.Config.HARDWARE, false).also { recycle() } else this
+
 /**
  * A [w] x [h] copy of [src]'s pixels, or null. Decoded art is often a hardware bitmap, which can't be read: scaling
  * keeps it hardware, so the small copy is moved to software before reading. Every pixel sample goes through here.
  */
 internal fun samplePixels(src: Bitmap, w: Int, h: Int): IntArray? = runCatching {
     val small = Bitmap.createScaledBitmap(src, w, h, true)
-    val soft = if (small.config == Bitmap.Config.HARDWARE) small.copy(Bitmap.Config.ARGB_8888, false) else small
+    val soft = if (small.onGpu()) small.copy(Bitmap.Config.ARGB_8888, false) else small
     IntArray(w * h).also { soft.getPixels(it, 0, w, 0, 0, w, h) }
         .also { if (small !== src) small.recycle(); if (soft !== small) soft.recycle() }
 }.getOrNull()
@@ -442,12 +450,93 @@ abstract class Screen : Activity() {
         addView(text("Alder", size, serif = true).onArt(), wrap().apply { marginStart = dp(4) })
     }
 
-    /** The IMDb tag beside a rating, as tall as the letters. */
-    protected fun imdbTag() = text("IMDb", SMALL, bold = true, color = BASE).apply {
+    /** The source's tag beside a rating ("IMDb", "Letterboxd"), as tall as the letters. */
+    protected fun ratingTag(source: String = "IMDb", sp: Float = SMALL) = text(source, sp, bold = true, color = BASE).apply {
         background = rounded(TUNGSTEN, 3)
         includeFontPadding = false
         setLineSpacing(0f, 1f)
         setPadding(dp(4), dp(1), dp(4), dp(1))
+    }
+
+    /** [ratings] as tag and number pairs, "IMDb 7.9  Letterboxd 3.9", into [row] after what it already holds. */
+    protected fun addRatings(row: LinearLayout, ratings: List<Pair<String, String>>, tagSp: Float = SMALL, firstGap: Int = 10) =
+        ratings.forEachIndexed { i, (source, value) ->
+            row.addView(ratingTag(source, tagSp), wrap().apply { marginStart = dp(if (i == 0) firstGap else 10) })
+            row.addView(text(value, SMALL, color = TEXT_2).onArt(), wrap().apply { marginStart = dp(6) })
+        }
+
+    /** One line of typing (an addon address, an API key) on glass; OK on the keyboard or the button hands it over, trimmed. */
+    protected fun askText(title: Int, action: Int, hint: String? = null, initial: String = "", done: (String) -> Unit) {
+        val dialog = android.app.Dialog(this).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        val field = android.widget.EditText(this).apply {
+            this.hint = hint
+            setHintTextColor(TEXT_3)
+            setTextColor(TEXT)
+            textSize = BODY
+            setSingleLine()
+            setText(initial)
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            background = glass(8)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        fun finish() { val typed = field.text.toString().trim(); dialog.dismiss(); done(typed) }
+        dialog.setContentView(column(Gravity.START).apply {
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            background = glassOver(this, 14)
+            addView(text(title, BODY, bold = true))
+            addView(field, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(14) })
+            addView(LinearLayout(context).apply {
+                gravity = Gravity.END
+                addView(chip(R.string.action_cancel).apply { setOnClickListener { dialog.dismiss() } })
+                addView(pill(action).apply { setOnClickListener { finish() } },
+                    LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
+        })
+        dialog.show()
+        dialog.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0)); setLayout(dp(400), -2); setDimAmount(0.6f) }
+        field.setOnEditorActionListener { _, _, _ -> finish(); true }
+        field.requestFocus()
+    }
+
+    /**
+     * Text too long for a remote (an API key), sent from a phone: a QR opens a one-box page served by the TV itself on
+     * the home network (PhoneEntry). "Type it instead" falls back to [askText], as does a TV with no network address.
+     */
+    protected fun askOnPhone(title: Int, initial: String = "", done: (String) -> Unit) {
+        val dialog = android.app.Dialog(this).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        val entry = runCatching {
+            PhoneEntry({ saved ->
+                phoneEntryPage(getString(title), getString(R.string.phone_page_label), getString(R.string.phone_page_send),
+                    if (saved) getString(R.string.phone_page_saved) else null)
+            }) { typed -> main.post { if (dialog.isShowing) dialog.dismiss(); done(typed) } }
+        }.getOrNull()
+        val url = entry?.url ?: run { entry?.close(); return askText(title, R.string.action_ok, initial = initial, done = done) }
+        val back = currentFocus // the row that opened it, so the remote stays there when the phone sends the text
+        dialog.setOnDismissListener { entry.close(); back?.requestFocus() }
+        val typeInstead = pill(R.string.phone_entry_type).apply {
+            setOnClickListener { dialog.dismiss(); askText(title, R.string.action_ok, initial = initial, done = done) }
+        }
+        dialog.setContentView(column(Gravity.CENTER,
+            text(title, BODY, bold = true),
+            text(R.string.phone_entry_scan, SMALL, color = TEXT_2).apply { gravity = Gravity.CENTER }.marginTop(8),
+            ImageView(this).apply {
+                setImageBitmap(qrBitmap(url, dp(180)))
+                background = rounded(TEXT, 12)
+                setPadding(dp(6), dp(6), dp(6), dp(6))
+            }.marginTop(16),
+            text(url, SMALL, color = TEXT_3).marginTop(10),
+            LinearLayout(this).apply {
+                gravity = Gravity.CENTER
+                addView(chip(R.string.action_cancel).apply { setOnClickListener { dialog.dismiss() } })
+                addView(typeInstead, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
+            }.marginTop(16),
+        ).apply {
+            setPadding(dp(24), dp(22), dp(24), dp(20))
+            background = glassOver(this, 14)
+        })
+        dialog.show()
+        dialog.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0)); setLayout(dp(420), -2); setDimAmount(0.6f) }
+        typeInstead.requestFocus()
     }
 
     /** Null animates loading; for countdowns set progress to fraction × max as time changes. */
@@ -897,9 +986,15 @@ abstract class Screen : Activity() {
     }
 
     // House Lights' shared values. Screens keep their layout and content; the helpers above own component styling.
+    // Inter is a variable font. Android 6 and 7 have no Typeface.Builder to pick its weight (calling it crashed Alder at
+    // launch there), so they get Inter's default weight and a synthetic bold for semi-bold.
     private class Fonts(assets: android.content.res.AssetManager) {
-        val medium: Typeface = Typeface.Builder(assets, "fonts/inter.ttf").setFontVariationSettings("'wght' 500").setWeight(500).build()
-        val semiBold: Typeface = Typeface.Builder(assets, "fonts/inter.ttf").setFontVariationSettings("'wght' 600").setWeight(600).build()
+        val medium: Typeface = if (android.os.Build.VERSION.SDK_INT >= 26)
+            Typeface.Builder(assets, "fonts/inter.ttf").setFontVariationSettings("'wght' 500").setWeight(500).build()
+        else Typeface.createFromAsset(assets, "fonts/inter.ttf")
+        val semiBold: Typeface = if (android.os.Build.VERSION.SDK_INT >= 26)
+            Typeface.Builder(assets, "fonts/inter.ttf").setFontVariationSettings("'wght' 600").setWeight(600).build()
+        else Typeface.create(medium, Typeface.BOLD)
         val serif: Typeface = Typeface.createFromAsset(assets, "fonts/instrument_serif.ttf")
     }
 

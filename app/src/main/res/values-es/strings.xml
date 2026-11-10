@@ -42,6 +42,7 @@
     <string name="tab_shows">Series</string>
     <string name="tab_movies">Películas</string>
     <string name="tab_live">En vivo</string>
+    <string name="tab_anime">Anime</string>
     <string name="tab_my_list">Mi lista</string>
     <string name="nav_profile">Perfil</string>
     <string name="nav_search">Buscar</string>
@@ -268,6 +269,10 @@
     <string name="subtitle_color_hint">El color del texto de los subtítulos.</string>
     <string name="subtitle_background">Fondo de subtítulos</string>
     <string name="subtitle_background_hint">Un fondo oscuro detrás de los subtítulos los mantiene legibles en escenas claras.</string>
+    <string name="picture_fit">Imagen</string>
+    <string name="picture_fit_fit">Ajustar</string>
+    <string name="picture_fit_zoom">Ampliar</string>
+    <string name="picture_fit_stretch">Estirar</string>
     <string name="settings_profile_name">Perfil %1$s</string>
     <string name="addons_installed">%1$d instalados</string>
     <string name="addons_unavailable">No disponible</string>
@@ -309,6 +314,18 @@
     <string name="featured_home_hint">Muestra las mejores recomendaciones y tendencias debajo de Seguir viendo.</string>
     <string name="blur_thumbnails">Difuminar miniaturas de episodios</string>
     <string name="blur_thumbnails_hint">Difumina las imágenes de episodios no vistos en las guías para evitar spoilers.</string>
+    <string name="ratings_source">Valoraciones</string>
+    <string name="ratings_source_hint">Elige las valoraciones de las páginas de títulos y el inicio. Letterboxd es solo para películas y necesita una clave de MDBList. Las series siempre usan IMDb.</string>
+    <string name="ratings_both">Ambas</string>
+    <string name="mdblist_key">Clave de MDBList</string>
+    <string name="mdblist_key_hint">Tu clave de API gratuita de mdblist.com/preferences. Alder solo la usa para obtener valoraciones de Letterboxd.</string>
+    <string name="key_not_set">Sin definir</string>
+    <string name="key_set">Definida</string>
+    <string name="phone_entry_scan">Escanea con un teléfono en la misma red Wi-Fi que este televisor y pega la clave allí.</string>
+    <string name="phone_entry_type">Escribirla aquí</string>
+    <string name="phone_page_label">Pega la clave</string>
+    <string name="phone_page_send">Enviar al televisor</string>
+    <string name="phone_page_saved">Guardada en el televisor. Puedes cerrar esta página.</string>
     <string name="app_language">Idioma de la app</string>
     <string name="app_language_hint">Los menús, botones y ajustes se muestran en este idioma. Los títulos y descripciones vienen de tus complementos.</string>
     <string name="tv_language">Idioma del TV</string>
