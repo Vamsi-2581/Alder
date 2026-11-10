@@ -19,6 +19,8 @@ Put changes that are not released under `## Unreleased`. Before each release, re
 
 ### New
 <!-- Spotlight -->
+- **Anime and other catalogs.** Catalogs of anime, video channels and other types now show. Each type has its own page in the top bar, for example **Anime**. Before, Alder showed only movie, series and live catalogs. Anime with episodes has its episode list, **Next episode** and **Continue**, as a show does. **My List** shows these titles too.
+<!-- Spotlight -->
 - **Picture size.** You can make the picture fill the screen. In the player, select **Audio & subtitles → Sync & Style → Picture**. **Fit** shows all of the picture. **Zoom** fills the screen and cuts the edges. **Stretch** fills the screen and changes the shape. Alder keeps your choice for all videos.
 <!-- Spotlight -->
 - **Letterboxd ratings.** Alder can show the Letterboxd rating of a film next to the IMDb rating, or in its place. Select **Settings → Profile → Ratings**. Letterboxd ratings need a free MDBList key. Select **MDBList key** and scan the code with your phone, then paste the key on the phone. Shows always use IMDb.

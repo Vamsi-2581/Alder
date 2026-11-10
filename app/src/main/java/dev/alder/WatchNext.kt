@@ -26,9 +26,9 @@ object WatchNext {
         val logoUri = "android.resource://${context.packageName}/drawable/logo_transparent"
         items.take(MAX).forEach { item ->
             val state = item.optJSONObject("state") ?: JSONObject()
-            val series = item.optString("type") == "series"
-            // A series' video id is "tt123:1:3": season, then episode.
+            // A series' video id is "tt123:1:3": season, then episode. Other types (anime) count as one when theirs is.
             val parts = state.optString("video_id").split(":")
+            val series = item.optString("type").let { it == "series" || it != "movie" && parts.size >= 3 }
             // Wide, cinematic art for the launcher's wide cards: the meta addon's backdrop (TMDB's, from AIOMetadata or
             // Cinemeta; last time's answer from disk when there is one), else the library's own, else MetaHub's for the
             // IMDb id. A poster sent as the art gets cropped to a strip of its middle by the launcher.
