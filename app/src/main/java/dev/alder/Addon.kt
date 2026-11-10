@@ -305,6 +305,16 @@ class Video(val id: String, val title: String, val season: Int, val episode: Int
             val overview: String?, val released: String?)
 
 /**
+ * Whether a title has episodes. A type is only a word an add-on picks ("anime", "channel", "podcast"), so for any type
+ * but movie, series and live, the title's own videos decide, as stremio-core does.
+ */
+internal fun hasEpisodes(type: String, videos: List<Video>?) = when {
+    type == "series" -> true
+    type == "movie" || isLiveType(type) -> false
+    else -> !videos.isNullOrEmpty()
+}
+
+/**
  * Stremio's subtitle extras, "videoSize=1234&filename=Show.S01E02.mkv", or "" when neither is known (a size of 0 is
  * unknown). Encoded like a URL path part, so a space is %20, not +.
  */

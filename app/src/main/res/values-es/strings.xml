@@ -42,6 +42,7 @@
     <string name="tab_shows">Series</string>
     <string name="tab_movies">Películas</string>
     <string name="tab_live">En vivo</string>
+    <string name="tab_anime">Anime</string>
     <string name="tab_my_list">Mi lista</string>
     <string name="nav_profile">Perfil</string>
     <string name="nav_search">Buscar</string>

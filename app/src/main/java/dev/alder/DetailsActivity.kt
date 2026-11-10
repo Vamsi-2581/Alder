@@ -125,6 +125,7 @@ class DetailsActivity : Screen() {
     private var selectedSeason = 1
     private var episodeRows = emptyList<View>()
     private var meta: Meta? = null
+    private val episodic get() = hasEpisodes(type, meta?.videos)
     private var item: JSONObject? = null // the title's library item: progress and whether it's in My List
     private var itemChangedHere = false
     private var similarRequested = false
@@ -172,8 +173,8 @@ class DetailsActivity : Screen() {
             richCast = m.castMembers
             certificate = m.certification ?: certificate
             showHero(m)
-            if (type == "series" && m.videos.isNotEmpty()) buildGuide(m.videos)
-            if (type == "movie" && !similarRequested) { similarRequested = true; loadSimilar() }
+            if (hasEpisodes(type, m.videos) && m.videos.isNotEmpty()) buildGuide(m.videos)
+            if (!hasEpisodes(type, m.videos) && !similarRequested) { similarRequested = true; loadSimilar() }
             loadRichCast()
             if (!certificateRequested && certificate == null && m.id.startsWith("tt")) {
                 certificateRequested = true
@@ -265,7 +266,7 @@ class DetailsActivity : Screen() {
             stack.addView(error.marginTop(16))
             error.post { error.getChildAt(2).requestFocus() }
         } else {
-            val length = if (type == "series") m.videos.map { it.season }.filter { it > 0 }.distinct().size
+            val length = if (hasEpisodes(type, m.videos)) m.videos.map { it.season }.filter { it > 0 }.distinct().size
                 .takeIf { it > 0 }?.let(::seasons) else m.runtime
             val facts = listOfNotNull(m.year, m.genres.firstOrNull(), length).joinToString(DOT)
             val factRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
@@ -314,7 +315,7 @@ class DetailsActivity : Screen() {
         hero.addView(stack, FrameLayout.LayoutParams(dp(HERO_W), -2, Gravity.BOTTOM or Gravity.START).apply {
             leftMargin = dp(PAD); bottomMargin = dp(92)
         })
-        val hasEpisodes = type == "series" && m?.videos?.isNotEmpty() == true
+        val hasEpisodes = hasEpisodes(type, m?.videos) && m?.videos?.isNotEmpty() == true
         if (hasEpisodes || ::similarOverlay.isInitialized) {
             hero.addView(caps(if (hasEpisodes) R.string.details_episodes_below else R.string.details_more_below, TEXT_2).onArt().apply {
                 isFocusable = true
@@ -352,7 +353,7 @@ class DetailsActivity : Screen() {
 
         val hasTrailer = m.trailerStreams.isNotEmpty() || m.trailerYtId != null || imdbTrailers.isNotEmpty()
 
-        if (type == "series" && unairedNext != null) {
+        if (episodic && unairedNext != null) {
             val airDate = airDay(unairedNext.released) ?: getString(R.string.details_airs_soon)
             val caughtUp = getString(if (airedVideos.isEmpty()) R.string.details_premiere else R.string.details_up_to_date,
                 unairedNext.season, unairedNext.episode, airDate)
@@ -1583,7 +1584,7 @@ class DetailsActivity : Screen() {
             if (infoOpen) { root.removeView(infoOverlay); infoOpen = false }
             hero.visibility = View.VISIBLE
             showHero(meta)
-            meta?.videos?.takeIf { type == "series" && it.isNotEmpty() }?.let(::buildGuide)
+            meta?.videos?.takeIf { episodic && it.isNotEmpty() }?.let(::buildGuide)
             if (wasGuide) showGuide()
         }
     }
@@ -1646,8 +1647,8 @@ class DetailsActivity : Screen() {
             }
             if (!infoOpen && !similarOpen && !filmographyOpen && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
                 currentFocus?.let { isInside(it, hero) } == true &&
-                (if (type == "series") ::guide.isInitialized else ::similarOverlay.isInitialized)) {
-                if (type == "series") showGuide() else showSimilar()
+                (if (episodic) ::guide.isInitialized else ::similarOverlay.isInitialized)) {
+                if (episodic) showGuide() else showSimilar()
                 return true
             }
         }
