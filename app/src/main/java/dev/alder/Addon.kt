@@ -171,11 +171,18 @@ class Addon(val descriptor: JSONObject) {
      */
     class Streams(val playable: List<Stream>, val torrents: Int, val links: Int)
 
-    /** Subtitle files for one video (OpenSubtitles and co. through Stremio's `subtitles` resource). */
-    fun subtitles(type: String, videoId: String): List<Subtitle> =
-        get(false, "subtitles", type, videoId).optJSONArray("subtitles").objects().mapNotNull { s ->
+    /**
+     * Subtitle files for one video (OpenSubtitles and co. through Stremio's `subtitles` resource). The [stream]'s size
+     * and file name, when known, go along as Stremio's extras so the addon puts files made for that release first.
+     */
+    fun subtitles(type: String, videoId: String, stream: Stream? = null): List<Subtitle> {
+        val extras = subtitleExtras(stream?.filename, stream?.size ?: 0L)
+        val path = url(arrayOf("subtitles", type, videoId))
+        val request = if (extras.isEmpty()) path else path.removeSuffix(".json") + "/" + extras + ".json"
+        return JSONObject(Http.get(request, false)).optJSONArray("subtitles").objects().mapNotNull { s ->
             Subtitle(s.text("url") ?: return@mapNotNull null, s.text("lang") ?: "und", name)
         }
+    }
 
     // Ids such as "tt0903747:1:2" keep their colons, like Stremio's own requests.
     private fun url(path: Array<out String>) = base + "/" + path.joinToString("/") { Uri.encode(it, ":=") } + ".json"
@@ -296,6 +303,15 @@ class CastMember(
 
 class Video(val id: String, val title: String, val season: Int, val episode: Int, val thumbnail: String?,
             val overview: String?, val released: String?)
+
+/**
+ * Stremio's subtitle extras, "videoSize=1234&filename=Show.S01E02.mkv", or "" when neither is known (a size of 0 is
+ * unknown). Encoded like a URL path part, so a space is %20, not +.
+ */
+internal fun subtitleExtras(filename: String?, size: Long): String = listOfNotNull(
+    "videoSize=$size".takeIf { size > 0 },
+    filename?.takeIf { it.isNotBlank() }?.let { "filename=" + java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") },
+).joinToString("&")
 
 class Stream(
     val title: String, val description: String, val url: String, val headers: Map<String, String>,
