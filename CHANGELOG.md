@@ -27,6 +27,7 @@ Put changes that are not released under `## Unreleased`. Before each release, re
 ### Fixes
 - **Long rows.** Alder releases poster memory for titles far off the screen. Rows stay fast when you move through many titles.
 - **Rows.** Each row on Shows and Movies keeps its own place. Before, a move to the next row went to the same position as in the last row.
+- **Smooth row motion.** Rows move smoothly when you move right fast. Live rows move at the same speed as poster rows. Background art waits until you stop on a title.
 - **Missing sources.** The source list tells you which add-ons gave no sources, and why. Before, Alder told you only when no source was available. An add-on that finds only torrents needs a debrid service.
 - **Backups.** Alder does not put profiles, sign-ins, or PINs in Android backups or device transfers. After a restore to a new TV, sign in to each profile again.
 - **Android 6 and 7.** Alder starts on Android 6 and 7 TVs. Before, Alder closed and the TV showed the home screen.
