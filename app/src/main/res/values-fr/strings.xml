@@ -316,6 +316,11 @@
     <string name="mdblist_key_hint">Votre clé d’API gratuite sur mdblist.com/preferences. Alder l’utilise uniquement pour les notes Letterboxd.</string>
     <string name="key_not_set">Non définie</string>
     <string name="key_set">Définie</string>
+    <string name="phone_entry_scan">Scannez avec un téléphone sur le même Wi-Fi que ce téléviseur, puis collez-y la clé.</string>
+    <string name="phone_entry_type">La taper ici</string>
+    <string name="phone_page_label">Collez la clé</string>
+    <string name="phone_page_send">Envoyer au téléviseur</string>
+    <string name="phone_page_saved">Enregistrée sur le téléviseur. Vous pouvez fermer cette page.</string>
     <string name="app_language">Langue de l’appli</string>
     <string name="app_language_hint">Les menus, boutons et paramètres s’affichent dans cette langue. Les titres et descriptions viennent de vos extensions.</string>
     <string name="tv_language">Langue du téléviseur</string>

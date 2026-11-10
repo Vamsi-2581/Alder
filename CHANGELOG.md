@@ -19,7 +19,7 @@ Put changes that are not released under `## Unreleased`. Before each release, re
 
 ### New
 <!-- Spotlight -->
-- **Letterboxd ratings.** Alder can show the Letterboxd rating of a film next to the IMDb rating, or in its place. Select **Settings → Profile → Ratings**. Letterboxd ratings need a free MDBList key. Type the key in **MDBList key**. Shows always use IMDb.
+- **Letterboxd ratings.** Alder can show the Letterboxd rating of a film next to the IMDb rating, or in its place. Select **Settings → Profile → Ratings**. Letterboxd ratings need a free MDBList key. Select **MDBList key** and scan the code with your phone, then paste the key on the phone. Shows always use IMDb.
 - **Alder website.** The House Lights website shows the TV app, setup steps, and a link to the latest APK.
 - Add an Alder website card image with the app screen and product text.
 

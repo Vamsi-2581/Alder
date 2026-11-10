@@ -498,6 +498,46 @@ abstract class Screen : Activity() {
         field.requestFocus()
     }
 
+    /**
+     * Text too long for a remote (an API key), sent from a phone: a QR opens a one-box page served by the TV itself on
+     * the home network (PhoneEntry). "Type it instead" falls back to [askText], as does a TV with no network address.
+     */
+    protected fun askOnPhone(title: Int, initial: String = "", done: (String) -> Unit) {
+        val dialog = android.app.Dialog(this).apply { requestWindowFeature(android.view.Window.FEATURE_NO_TITLE) }
+        val entry = runCatching {
+            PhoneEntry({ saved ->
+                phoneEntryPage(getString(title), getString(R.string.phone_page_label), getString(R.string.phone_page_send),
+                    if (saved) getString(R.string.phone_page_saved) else null)
+            }) { typed -> main.post { if (dialog.isShowing) dialog.dismiss(); done(typed) } }
+        }.getOrNull()
+        val url = entry?.url ?: run { entry?.close(); return askText(title, R.string.action_ok, initial = initial, done = done) }
+        dialog.setOnDismissListener { entry.close() }
+        val typeInstead = pill(R.string.phone_entry_type).apply {
+            setOnClickListener { dialog.dismiss(); askText(title, R.string.action_ok, initial = initial, done = done) }
+        }
+        dialog.setContentView(column(Gravity.CENTER,
+            text(title, BODY, bold = true),
+            text(R.string.phone_entry_scan, SMALL, color = TEXT_2).apply { gravity = Gravity.CENTER }.marginTop(8),
+            ImageView(this).apply {
+                setImageBitmap(qrBitmap(url, dp(180)))
+                background = rounded(TEXT, 12)
+                setPadding(dp(6), dp(6), dp(6), dp(6))
+            }.marginTop(16),
+            text(url, SMALL, color = TEXT_3).marginTop(10),
+            LinearLayout(this).apply {
+                gravity = Gravity.CENTER
+                addView(chip(R.string.action_cancel).apply { setOnClickListener { dialog.dismiss() } })
+                addView(typeInstead, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
+            }.marginTop(16),
+        ).apply {
+            setPadding(dp(24), dp(22), dp(24), dp(20))
+            background = glassOver(this, 14)
+        })
+        dialog.show()
+        dialog.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0)); setLayout(dp(420), -2); setDimAmount(0.6f) }
+        typeInstead.requestFocus()
+    }
+
     /** Null animates loading; for countdowns set progress to fraction × max as time changes. */
     protected fun ring(fraction: Float? = null): ProgressBar = object : ProgressBar(this, null,
         // A countdown needs a style that keeps its progress; the default one is indeterminate-only and reads 0.

@@ -561,7 +561,7 @@ class SettingsActivity : Screen() {
                 lateinit var keyValue: TextView
                 fun keyState() = getString(if (Settings.mdblistKey(this).isEmpty()) R.string.key_not_set else R.string.key_set)
                 keyValue = actionRow(getString(R.string.mdblist_key), keyState(), getString(R.string.mdblist_key_hint)) {
-                    askText(R.string.mdblist_key, R.string.action_ok, initial = Settings.mdblistKey(this)) { typed ->
+                    askOnPhone(R.string.mdblist_key, initial = Settings.mdblistKey(this)) { typed ->
                         Settings.setMdblistKey(this, typed)
                         forgetLetterboxd()
                         keyValue.text = keyState() + "  ›"

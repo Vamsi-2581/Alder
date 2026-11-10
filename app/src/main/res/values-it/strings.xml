@@ -316,6 +316,11 @@
     <string name="mdblist_key_hint">La tua chiave API gratuita da mdblist.com/preferences. Alder la usa solo per le valutazioni Letterboxd.</string>
     <string name="key_not_set">Non impostata</string>
     <string name="key_set">Impostata</string>
+    <string name="phone_entry_scan">Scansiona con un telefono sulla stessa rete Wi-Fi di questa TV, poi incolla lì la chiave.</string>
+    <string name="phone_entry_type">Digitala qui</string>
+    <string name="phone_page_label">Incolla la chiave</string>
+    <string name="phone_page_send">Invia alla TV</string>
+    <string name="phone_page_saved">Salvata sulla TV. Puoi chiudere questa pagina.</string>
     <string name="app_language">Lingua dell’app</string>
     <string name="app_language_hint">Menu, pulsanti e impostazioni appaiono in questa lingua. Titoli e descrizioni arrivano dai tuoi add-on.</string>
     <string name="tv_language">Lingua della TV</string>
